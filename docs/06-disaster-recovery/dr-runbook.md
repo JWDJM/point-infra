@@ -26,7 +26,7 @@
 | 4 | 컴퓨팅 생성 | `terraform apply envs/gcp-dr-compute` | GKE RUNNING | 재시도 1회 → 존(zone) 변경 변수 |
 | 5 | GitOps 부트스트랩 | Terraform helm_release (ArgoCD + root-gcp-dr) | ArgoCD Apps Healthy | `kubectl apply -k k8s/argocd` |
 | 6 | 복제 종료 확인 · RPO 근거 기록 | 클러스터 내부 Pod: `record-rpo.sh` → `last_replicated_at`(heartbeat `ts`), `last_ledger_at`(`max(point_ledger.created_at)`) | 값 기록 | 기록만 하고 진행 |
-| 7 | Cloud SQL 승격 | 클러스터 내부 Job: `promote-cloudsql.sh promote` → sink_writer NOLOGIN, app_rw LOGIN, `fix-sequences.sql`, `reconcile-wallet.sql` | app_rw 접속 성공, drift 건수 기록 | 같은 SQL 을 `kubectl run` 으로 수동 실행 |
+| 7 | Cloud SQL 승격 | 클러스터 내부 Job: `promote-cloudsql.sh promote` → sink_writer NOLOGIN, app_rw LOGIN, `fix-sequences.sql`, `reconcile-wallet.sql`, `settle-incomplete-events.sql` | app_rw 접속 성공, drift 건수·퀴즈 정산 판정표 기록 | 같은 SQL 을 `kubectl run` 으로 수동 실행 |
 | 8 | 앱 기동 | ArgoCD 자동 동기화 (monolith, maintenance) | readiness OK | 이미지 태그/시크릿 확인 |
 | 9 | 트래픽 전환 | `scripts/dr/switch-dns.sh to-gcp` | `dig` 결과 GCP IP | §4 DNS 전환 시나리오 |
 | 10 | 스모크 테스트 | `smoke-test.sh` (`DR_BASE_URL` = GitHub Variables) — 로그인 → 잔액 조회 → 내역 조회 | 200 OK | 롤백 판단 |
@@ -35,6 +35,8 @@
 > **왜 이 순서인가:** Cloud SQL 은 Private IP(`10.30.0.0/20`) 전용이라 GitHub-hosted runner 에서는 `psql` 로 접속할 수 없다. runner 는 GCP API(gcloud, Terraform)만 쓰고, SQL 이 필요한 6·7단계는 GKE 생성 직후 클러스터 내부(같은 VPC)의 일회성 Pod/Job 으로 실행한다. monolith 는 7단계(app_rw LOGIN) 전까지 readiness 실패 상태로 대기한다.
 >
 > **RPO 기록 주의:** 장애 후 `now() - ts` 는 "장애 발생 후 경과 시간" 이지 RPO 가 아니다. 복제 지연(`replication_lag`)은 평시·드릴 지표로만 쓰고, 실제 RPO = (Main 중단 시각, AWS 기록으로 사후 확정) − `last_replicated_at`.
+>
+> **퀴즈 정산 판정 (ADR-0017):** 정산 기록(`event_settlement.row_count`)과 원장 건수를 비교한다. INCOMPLETE(정산 후 복제 끊김)는 복제된 대기 건으로 누락분을 지급하고, 대기 건까지 모자란 `shortfall` 은 Failback 시 RDS 기준으로 완성된다. NOT_SETTLED(정산 전 재해)는 전원 미지급 상태이므로 DR 중에는 정산하지 않는다 — 대기 건이 Kafka lag 만큼 모자랄 수 있어 당첨자 전원이라는 보장이 없다. 반드시 시퀀스·지갑 보정 **뒤에** 실행한다.
 >
 > **지갑 잔액 보정:** JDBC Sink 는 테이블별 토픽을 병렬 소비하므로 원장과 지갑이 서로 다른 시점에서 끊길 수 있다. 원장(append-only)을 기준으로 지갑을 맞추고 불일치 내역은 Failback 대사 자료로 남긴다 (`reconcile-wallet.sql`).
 
@@ -59,7 +61,8 @@
 | 3 | 점검 시작 — GCP 쓰기 중단 (maintenance 모드) | 쓰기 동결 |
 | 4 | 최종 동기화 + 행 수/체크섬 검증 | |
 | 5 | DNS를 AWS로 전환 | |
-| 6 | Kafka consumer 재개 → 미반영 reward 처리 (멱등) | |
+| 6 | Kafka consumer 재개 → 미반영 reward 처리 (멱등) | 퀴즈 당첨은 정산 대기열로 적재됨 |
+| 6-1 | 정산 안 된 퀴즈 이벤트 정산: lag 0 확인 → `SCARD event:{id}:winners` → `POST /api/admin/events/{id}/settlement`. 정산된 이벤트도 본문 없이 한 번 더 호출해 `shortfall` 을 채운다 | Redis 가 소실됐으면 재진행/일괄 보상 결정 |
 | 7 | 정방향 CDC 재구성 (Debezium slot 재생성, 초기 스냅샷) | |
 | 8 | `terraform destroy envs/gcp-dr-compute` | 비용 원복 |
 | 9 | Postmortem 작성 | |

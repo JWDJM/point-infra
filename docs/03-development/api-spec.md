@@ -24,7 +24,7 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <JWT>` · 응답 
 | POST | `/api/events/attendance` | 출석체크 | 202 지급 예정 / 409 이미 출석 |
 | POST | `/api/events/{eventId}/queue` | 대기열 진입 | 200 `{ position }` |
 | GET | `/api/events/{eventId}/queue/me` | 내 순번 | 200 `{ position, admitted }` |
-| POST | `/api/events/{eventId}/answers` | 퀴즈 정답 제출 | 202 당첨(지급 예정) / 200 낙첨 / 409 중복 / 410 마감 |
+| POST | `/api/events/{eventId}/answers` | 퀴즈 정답 제출 | 202 당첨(지급 예정 — 이벤트 종료 후 일괄 정산) / 200 낙첨 / 409 중복 / 410 마감 |
 
 ## 운영·인프라 검증 (ops)
 
@@ -37,6 +37,15 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <JWT>` · 응답 
 | monolith | GET | `/api/system/ledger?recent=` | 원장 집계(지갑 수·잔액 합·출처별 합계) + 전체 사용자 최근 활동 |
 | event-service | GET | `/api/events/system/info` | 응답 Pod, Redis(버전·role·PING), Kafka(토픽·누적 발행 offset). DR 모드에서는 503 `EVENT_MAINTENANCE` |
 | event-service | GET | `/api/events/system/whoami` | 응답 Pod 정보만 |
+
+## 관리자 (admin)
+
+`X-Admin-Token` 헤더(`ADMIN_API_TOKEN`)로 보호. 정산 Job·DR 런북 전용 — 관리자 역할(JWT role) 도입 시 교체. 토큰을 설정하지 않으면 항상 403.
+
+| 서비스 | Method | Path | 설명 |
+|---|---|---|---|
+| monolith | GET | `/api/admin/events/{eventId}/settlement` | 정산 현황 `state`: NOT_SETTLED / COMPLETE / INCOMPLETE, 대기·원장·미반영 건수 |
+| monolith | POST | `/api/admin/events/{eventId}/settlement` | 일괄 정산 `{"expectedCount": n}` → 200 / 409 `SETTLEMENT_NOT_READY`(대기 건 ≠ 당첨자 수). 이미 정산된 이벤트는 본문 없이 호출하면 누락분만 채움 (ADR-0017) |
 
 ## DR 모드
 

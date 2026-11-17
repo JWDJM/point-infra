@@ -33,4 +33,5 @@
 - RTO ≤ 30분, RPO ≤ 5초
 - 스모크 테스트 100% 통과
 - 원장 대사 불일치 0건 (Failback 후)
+- 퀴즈 정산 판정표에 INCOMPLETE 0건 (재정산 후), Failback 후 모든 이벤트 `state = COMPLETE`
 - 수동 콘솔 작업 0회

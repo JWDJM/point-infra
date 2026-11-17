@@ -25,7 +25,11 @@
 | Redis CPU | < 70% | 초과 시 읽기 경로 점검 |
 
 ## 종료 후
-- [ ] 대사 배치 실행 (Redis 당첨자 ↔ ledger)
+- [ ] **퀴즈 일괄 정산** (ADR-0017): consumer lag = 0 확인 → 당첨자 수 확인 (`SCARD event:{id}:winners`) →
+      `POST /api/admin/events/{id}/settlement {"expectedCount": n}`
+  - 409 `SETTLEMENT_NOT_READY` 면 lag 해소 후 재시도 (원장은 바뀌지 않음)
+  - 200 확인 후 `GET .../settlement` 의 `state = COMPLETE`, `unappliedCount = 0` 확인
+- [ ] 대사 배치 실행 (출석 보상: Redis 비트맵 ↔ ledger)
 - [ ] DLQ 처리
 - [ ] 스케일 인/노드 회수 확인
 - [ ] 이벤트 비용·지표 기록 → finops.md

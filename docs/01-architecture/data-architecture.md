@@ -19,6 +19,8 @@
 | `point.point_wallet` | 사용자별 잔액 | ✅ |
 | `point.point_ledger` | 포인트 원장 (append-only) | ✅ |
 | `point.refund_request` | 환불 요청 | ✅ |
+| `point.reward_pending` | 퀴즈 당첨 정산 대기열 (이벤트당 사용자 1건, 멱등키 PK) — [ADR-0017](../02-adr/0017-quiz-batch-settlement.md) | ✅ (DR 재정산 근거) |
+| `point.event_settlement` | 이벤트별 정산 완료 기록 (`row_count`, `total_amount`) | ✅ (DR 판정 기준) |
 | `cs.notice`, `cs.inquiry` | 고객센터 | ❌ (DR 시 읽기 불필요, 사후 복구) |
 | `asset.asset_snapshot` | 자산 조회 캐시 | ❌ (재조회 가능) |
 
@@ -28,7 +30,7 @@
 
 | 토픽 | Key | 파티션 | 보존 | Producer → Consumer |
 |---|---|---|---|---|
-| `point.reward.requested` | userId | 12 | 7일 | event-service → monolith(point) |
+| `point.reward.requested` | userId | 12 | 7일 | event-service → monolith(point). 퀴즈 당첨은 정산 대기열로, 출석은 원장으로 즉시 (ADR-0017) |
 | `point.reward.dlq` | userId | 3 | 14일 | point consumer (실패 건) |
 | `cdc.users.*`, `cdc.point.*`, `cdc.asset.linked_account` | PK | 6 | 3일 | Debezium → JDBC Sink |
 | `connect-configs/offsets/status` | - | - | compact | MSK Connect 내부 |

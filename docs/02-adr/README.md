@@ -20,6 +20,7 @@
 | [0014](0014-gateway-api.md) | 트래픽 진입에 Gateway API 채택 | Accepted |
 | [0015](0015-web-pod-frontend.md) | 프론트엔드를 web 파드로 서빙 | Accepted |
 | [0016](0016-dr-dns-failover.md) | DR DNS 전환을 AWS 컨트롤 플레인 없이 수행 | Proposed |
+| [0017](0017-quiz-batch-settlement.md) | 퀴즈 이벤트 보상을 이벤트 종료 후 일괄 정산 | Accepted |
 
 ## 템플릿
 ```markdown

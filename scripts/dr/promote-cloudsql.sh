@@ -2,7 +2,7 @@
 # Cloud SQL 을 DR Primary 로 승격
 # usage: promote-cloudsql.sh prepare | promote
 #  - DRILL=true  : 클론 인스턴스를 만들어 그것을 승격 (실제 복제는 유지)
-#  - DRILL=false : 실제 인스턴스 승격 (sink 계정 차단 → 앱 계정 활성화 → 시퀀스·잔액 보정)
+#  - DRILL=false : 실제 인스턴스 승격 (sink 계정 차단 → 앱 계정 활성화 → 시퀀스·잔액 보정 → 퀴즈 정산 판정·재정산)
 #
 # Cloud SQL 은 Private IP 전용 → GitHub runner 에서 psql 불가.
 #  prepare : runner 에서 gcloud API 만 사용 (GKE 생성 전)
@@ -28,6 +28,7 @@ case "$PHASE" in
     #   ALTER ROLE app_rw LOGIN;
     #   \i scripts/dr/fix-sequences.sql
     #   \i scripts/dr/reconcile-wallet.sql
+    #   \i scripts/dr/settle-incomplete-events.sql   (반드시 위 두 스크립트 뒤 — ADR-0017)
     echo "TODO: promote ${INSTANCE}"
     ;;
   *) echo "unknown phase: $PHASE" >&2; exit 2 ;;

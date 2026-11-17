@@ -69,7 +69,9 @@ Route 53 ── Failover Record (Primary: AWS ALB / Secondary: GCP Static IP)
 3. Redis `DECR event:{id}:stock` ≥ 0 이면 당첨 (Lua로 원자 처리)
 4. 당첨 시 Kafka `point.reward.requested` 발행 (key=userId, idempotencyKey=eventId:userId)
 5. 클라이언트에는 즉시 "지급 예정" 응답 (202 Accepted)
-6. monolith point consumer가 멱등키 유니크 제약으로 원장에 반영 → 잔액 갱신
+6. monolith point consumer가 정산 대기열(`point.reward_pending`)에 멱등 적재 — 원장·잔액은 아직 그대로
+7. 이벤트 종료 후 정산 Job 이 당첨자 수(Redis)와 대기 건수가 같은지 확인하고 **한 트랜잭션으로 일괄 지급** + 정산 기록 (ADR-0017)
+   - 출석체크는 6단계에서 원장에 즉시 반영한다
 
 ### 4.3 DR — AWS 리전 장애
 1. Route 53 Health Check 실패 감지 + 운영자 장애 선언
