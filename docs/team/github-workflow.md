@@ -90,6 +90,7 @@ Refs: #42
   | `[q]` | 질문 | 답변 필수 |
 - 리뷰는 코드에 대해, 사람에 대해 하지 않는다. 승인 시 무엇을 확인했는지 한 줄 남긴다.
 - **AI 생성 코드도 동일 기준.** 작성자가 설명하지 못하면 `[must]`.
+- **CodeRabbit 자동 리뷰** (`.coderabbit.yaml`): Ready for review 시점부터 AGENTS.md 기준으로 1차 리뷰. 사람 승인을 대체하지 않으며, 지적 사항은 반영하거나 답글로 사유를 남기고 Resolve. 재리뷰는 `@coderabbitai review` 코멘트.
 
 ## 6. 브랜치 보호 (Rulesets) — 모든 레포 `main`
 
