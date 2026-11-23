@@ -9,6 +9,8 @@
 | Traces | OpenTelemetry SDK | (선택) Tempo / X-Ray | Phase 6 |
 | 관리형 지표 | CloudWatch | Grafana CloudWatch datasource | RDS, MSK, ElastiCache |
 
+> 현재 구현: point-backend 가 `/actuator/prometheus`(Micrometer)를 노출하는 것까지. kube-prometheus-stack·Fluent Bit·대시보드·알람 매니페스트는 아직 없다. p95 계산에는 `management.metrics.distribution.percentiles-histogram.http.server.requests=true` 가 필요하다 (환경 변수로는 `MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILESHISTOGRAM_HTTP_SERVER_REQUESTS=true` — 하이픈은 빼고 쓴다).
+
 ## 2. SLO
 
 | SLI | SLO | 측정 |

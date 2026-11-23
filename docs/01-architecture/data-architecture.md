@@ -15,14 +15,19 @@
 |---|---|---|
 | `users.app_user` | 사용자 계정 (`user`는 예약어) | ✅ |
 | `users.user_credential` | 비밀번호 해시 | ✅ |
+| `users.refresh_token` | 로그인 세션 (refresh token **SHA-256 해시**, 만료·폐기 시각) | ❌ (Failover 후 재로그인, 자격 증명은 복제됨) |
 | `asset.linked_account` | 마이데이터 연동 계좌 (Mock) | ✅ |
 | `point.point_wallet` | 사용자별 잔액 | ✅ |
 | `point.point_ledger` | 포인트 원장 (append-only) | ✅ |
 | `point.refund_request` | 환불 요청 | ✅ |
 | `point.reward_pending` | 퀴즈 당첨 정산 대기열 (이벤트당 사용자 1건, 멱등키 PK) — [ADR-0017](../02-adr/0017-quiz-batch-settlement.md) | ✅ (DR 재정산 근거) |
 | `point.event_settlement` | 이벤트별 정산 완료 기록 (`row_count`, `total_amount`) | ✅ (DR 판정 기준) |
-| `cs.notice`, `cs.inquiry` | 고객센터 | ❌ (DR 시 읽기 불필요, 사후 복구) |
-| `asset.asset_snapshot` | 자산 조회 캐시 | ❌ (재조회 가능) |
+| `cs.notice` | 공지 | ❌ (DR 시 읽기 불필요, 사후 복구) |
+| `public.dr_heartbeat` | CDC 복제 지연(RPO) 측정 — Debezium 이 1초마다 갱신 | ✅ |
+| `cs.inquiry` *(계획, 미생성)* | 1:1 문의 | ❌ |
+| `asset.asset_snapshot` *(계획, 미생성)* | 자산 조회 캐시 | ❌ (재조회 가능) |
+
+> 실제 테이블은 point-backend `monolith/src/main/resources/db/migration` (Flyway) 기준. *(계획)* 표시는 아직 마이그레이션이 없다.
 
 **원칙:** "잃으면 돈/신뢰 문제가 생기는 데이터"만 실시간 복제한다. 재생성 가능한 데이터는 제외해 Lag과 비용을 줄인다.
 

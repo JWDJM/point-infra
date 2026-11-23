@@ -43,6 +43,7 @@
 | 단계 | 문서 | 내용 |
 |---|---|---|
 | 개요 | [project-overview](docs/00-overview/project-overview.md) | 배경, 비즈니스 시나리오, 범위, 성공 지표 |
+| | [implementation-status](docs/00-overview/implementation-status.md) | **설계 ↔ 코드 구현 현황** (무엇이 실제로 있고 무엇이 설계만인가) |
 | | [requirements](docs/00-overview/requirements.md) | 기능/비기능 요구사항, 규제 고려사항 |
 | 아키텍처 | [architecture-overview](docs/01-architecture/architecture-overview.md) | 전체 구조, 컴포넌트 책임 |
 | | [hybrid-msa](docs/01-architecture/hybrid-msa.md) | 모놀리스/MSA 경계, 이벤트 흐름 |
@@ -107,11 +108,11 @@ point-infra/
 
 ## 6. 진행 현황
 
-로드맵: [docs/08-project-management/roadmap.md](docs/08-project-management/roadmap.md)
+로드맵: [docs/08-project-management/roadmap.md](docs/08-project-management/roadmap.md) · 영역별 구현 현황: [implementation-status](docs/00-overview/implementation-status.md)
 
 - [ ] Phase 0 — 설계 및 문서화
-- [ ] Phase 1 — 애플리케이션 MVP (로컬)
-- [ ] Phase 2 — AWS Main 인프라 (Terraform)
+- [ ] Phase 1 — 애플리케이션 MVP (로컬) — 핵심 경로 완료, asset·cs·대기열·환불 남음
+- [ ] Phase 2 — AWS Main 인프라 (Terraform) — vpc·eks 작성, aurora → rds 교체 예정, 나머지 모듈 스텁
 - [ ] Phase 3 — EKS + GitOps + 오토스케일링
 - [ ] Phase 4 — CDC 복제 + GCP Standby
 - [ ] Phase 5 — DR Failover 자동화 + 훈련

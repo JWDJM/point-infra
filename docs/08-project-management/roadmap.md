@@ -23,15 +23,21 @@
 - [ ] AWS/GCP 계정, 예산 알림 설정
 
 ### Phase 1 — 애플리케이션
-- [ ] monolith: user(JWT), point(원장·멱등), asset(Mock), cs
-- [ ] event-service: 출석(Bitmap), 퀴즈(Lua), 대기열(ZSET), Kafka 발행
-- [ ] point consumer + DLQ
-- [ ] Flyway 스키마, Testcontainers 통합 테스트, ArchUnit
-- [ ] Dockerfile (multi-stage, non-root)
+> 현황 상세: [implementation-status](../00-overview/implementation-status.md)
+
+- [x] monolith: user(JWT + refresh token), point(원장·멱등·사용)
+- [ ] monolith: asset(Mock), cs, 포인트 환불·내역 페이지네이션
+- [x] event-service: 출석(Bitmap), 퀴즈(Lua), Kafka 발행
+- [ ] event-service: 대기열(ZSET), 운영용 이벤트 생성·조회 API
+- [x] point consumer + DLQ
+- [x] 퀴즈 일괄 정산 (ADR-0017) — 정산 API·재정산
+- [x] Flyway 스키마, Testcontainers 통합 테스트, ArchUnit
+- [x] Dockerfile (multi-stage, non-root)
 
 ### Phase 2 — AWS 인프라
-- [ ] bootstrap (S3 state)
-- [ ] modules/aws/vpc, eks, rds, elasticache, msk, ecr
+- [x] bootstrap (S3 state)
+- [x] modules/aws/vpc, eks (작성 — apply 전)
+- [ ] modules/aws/rds (현재 aurora 스캐폴딩 → ADR-0013 교체), elasticache, msk, ecr, karpenter, waf (스텁)
 - [ ] envs/aws-main 조립
 - [ ] GitHub OIDC Role
 

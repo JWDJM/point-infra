@@ -2,6 +2,7 @@
 
 ## D-1
 - [ ] 이벤트 메타데이터 등록 (시작 시각, 당첨 수량) → Redis 초기화 Job 예약
+  - ⚠️ 운영(aws) 프로필에는 아직 이벤트 생성 API·Job 이 없다. `POST /api/events/{id}/open` 은 `local` 프로필 전용 ([api-spec](../../03-development/api-spec.md#event-service))
 - [ ] KEDA ScaledObject Cron 시간 확인 (시작 5분 전 ~ 종료 30분 후)
 - [ ] ArgoCD Sync Window: 이벤트 시간대 배포 차단 확인
 - [ ] Spot 용량 리스크 대비: NodePool에 On-Demand fallback 허용 확인
@@ -29,7 +30,7 @@
       `POST /api/admin/events/{id}/settlement {"expectedCount": n}`
   - 409 `SETTLEMENT_NOT_READY` 면 lag 해소 후 재시도 (원장은 바뀌지 않음)
   - 200 확인 후 `GET .../settlement` 의 `state = COMPLETE`, `unappliedCount = 0` 확인
-- [ ] 대사 배치 실행 (출석 보상: Redis 비트맵 ↔ ledger)
+- [ ] 대사 배치 실행 (출석 보상: Redis 비트맵 ↔ ledger) — *배치 미구현* ([domain-model §4](../../03-development/domain-model.md))
 - [ ] DLQ 처리
 - [ ] 스케일 인/노드 회수 확인
 - [ ] 이벤트 비용·지표 기록 → finops.md

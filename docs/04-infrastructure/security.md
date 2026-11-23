@@ -7,7 +7,7 @@
 | 엣지 | DDoS, 봇, Rate Limit | AWS Shield Standard, 리전 WAF(ALB 연결): Managed Rules(Common, IP Reputation, Known Bad Inputs) + Rate-based rule |
 | 네트워크 | 망분리, 최소 개방 | Private Subnet, SG 최소 포트, VPC Endpoint, 클라우드 간 VPN |
 | 계정/권한 | 최소 권한, 장기 키 금지 | IAM Role + OIDC, EKS Pod Identity, GKE Workload Identity |
-| K8s | 파드 권한 최소화 | Pod Security Standards(restricted), NetworkPolicy, non-root 이미지 |
+| K8s | 파드 권한 최소화 | Pod Security Standards(restricted), NetworkPolicy, non-root 이미지 (현재 non-root·securityContext 만 적용, PSS 라벨·NetworkPolicy 매니페스트 없음) |
 | 데이터 | 저장 암호화 | KMS(RDS, MSK, ElastiCache, EBS, ECR), GCP CMEK(Cloud SQL) |
 | 데이터 | 전송 암호화 | TLS 1.2+, RDS `rds.force_ssl=1`, MSK·ElastiCache 전송 암호화, Cloud SQL SSL 필수 |
 | 데이터 | 개인정보 | 이름·연락처 컬럼 애플리케이션 레벨 암호화, 로그 마스킹 |
@@ -30,7 +30,7 @@
 
 | 계정 | 위치 | 권한 |
 |---|---|---|
-| `app_rw` | RDS | 앱 스키마 DML |
+| `app_rw` | RDS | 앱 스키마 DML **+ Flyway DDL** (현재 Flyway 가 `app_rw` 로 실행돼 스키마·테이블 소유자가 된다 → `CREATE ON DATABASE`, PostgreSQL 15+ 는 `CREATE ON SCHEMA public` 도 필요). 원장 UPDATE/DELETE 를 DB 권한으로 막으려면 마이그레이션 계정과 분리해야 한다 |
 | `debezium` | RDS | REPLICATION, 대상 테이블 SELECT |
 | `sink_writer` | Cloud SQL | 평시 유일한 쓰기 계정 |
 | `app_rw` | Cloud SQL | **평시 NOLOGIN → Failover 시 LOGIN 전환** |
