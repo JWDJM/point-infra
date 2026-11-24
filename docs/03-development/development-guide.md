@@ -50,7 +50,7 @@ make local-down
 - 설정: 환경별 값은 `application-{profile}.yml` 이 아니라 **환경 변수 / K8s ConfigMap·Secret** 으로 주입 (12-Factor)
 - 프로필: `local`, `aws`, `gcp-dr` — 프로필 전용 설정 파일은 **`application-local.yml` 만** 있다 (데모 시드, local 전용 이벤트 API, 쿠키 Secure 끔, 관리자 토큰 기본값, JWT 키 없으면 임시 키 생성). aws·gcp-dr 은 파일 없이 환경 변수만으로 설정한다
 - ⚠️ `application-local.yml` 의 고정값은 `${ENV}` 자리표시자를 이긴다 → local 프로필로 클러스터에 띄울 땐 속성을 직접 가리키는 환경 변수(예: `APP_ADMIN_APITOKEN`)로 덮는다
-- 인증: access token RS256 JWT + refresh token(HttpOnly 쿠키, rotation) — [api-spec §인증 방식](api-spec.md#인증-방식). 운영 프로필에서는 `JWT_PRIVATE_KEY`(monolith, PKCS#8) / `JWT_PUBLIC_KEY`(event-service) 가 없으면 기동 실패
+- 인증: access token RS256 JWT + refresh token(HttpOnly 쿠키, rotation) — [api-spec §인증 방식](api-spec.md#인증-방식). 운영 프로필에서는 `JWT_PRIVATE_KEY`(monolith, PKCS#8) 가 없으면 기동 실패. event-service 는 `JWT_PUBLIC_KEY` 또는 `JWT_JWK_SET_URI` 중 하나가 필요하며 (`JWT_PUBLIC_KEY` 우선), 둘 다 없으면 기동 실패
 - 헬스체크: `/actuator/health/liveness`, `/actuator/health/readiness` 분리
 - Graceful Shutdown: `server.shutdown=graceful`, preStop sleep 10s (ALB 등록 해제 대기)
 
