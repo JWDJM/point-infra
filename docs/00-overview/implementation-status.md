@@ -11,7 +11,7 @@
 |---|---|---|
 | 애플리케이션 (point-backend) | ✅ 핵심 경로 | 회원가입·로그인(JWT + refresh token), 잔액·내역·사용, 출석, 퀴즈 + 일괄 정산, Kafka + DLQ, 운영 API. asset·cs·대기열·환불은 없음 |
 | 프론트엔드 (point-frontend) | ✅ 핵심 화면 | 로그인/가입, 홈, 이벤트, 결제, 내역, 관리자. **이벤트 화면이 local 전용 API 를 호출** (§3.3) |
-| Terraform (AWS) | 🟡 | vpc, eks, aurora(→ rds 교체 예정) 작성. karpenter·elasticache·msk·ecr·edge 는 스텁, `argocd-bootstrap` 없음 |
+| Terraform (AWS) | 🟡 | vpc, eks, DB 모듈(ADR-0006 기준 — RDS 로 교체 예정) 작성. karpenter·elasticache·msk·ecr·edge 는 스텁, `argocd-bootstrap` 없음 |
 | Terraform (GCP) | 🟡 | argocd-bootstrap 작성. network·cloudsql·gke·vpn 스텁 |
 | K8s / GitOps | 🟡 | base(monolith, event-service, maintenance), overlays, argocd apps 일부. **Ingress 사용**(Gateway API 아님), web·db-init·ExternalSecret 없음 |
 | CI/CD | 🟡 | backend·frontend `ci.yml`(테스트·빌드·Trivy), infra `terraform-plan.yml`(정적 검증). 이미지 push·태그 bump·apply·drift 는 TODO |
@@ -28,13 +28,13 @@
 | `bootstrap/aws`, `bootstrap/gcp` | ✅ | S3 / GCS state 버킷 |
 | `modules/aws/vpc` | ✅ | terraform-aws-modules/vpc `~> 5.0`. VPC Endpoint(ecr·sts·secretsmanager·logs)는 TODO |
 | `modules/aws/eks` | ✅ | terraform-aws-modules/eks `~> 20.0`. API 엔드포인트 public(허용 CIDR 제한 TODO) |
-| `modules/aws/aurora` | 🟡 | ADR-0006(Superseded) 기준 Aurora 클러스터. ADR-0013 의 `modules/aws/rds` (RDS for PostgreSQL 16) 로 교체 예정 — AWS DB 영역은 #8 담당자가 개인 샌드박스에서 검증 중 ([infra/terraform/README](../../infra/terraform/README.md)) |
+| DB 모듈 (현재 스캐폴딩) | 🟡 | ADR-0006(Superseded) 기준 클러스터형 DB 모듈. ADR-0013 의 `modules/aws/rds` (RDS for PostgreSQL 16) 로 교체 예정 — AWS DB 영역은 #8 담당자가 개인 샌드박스에서 검증 중 ([infra/terraform/README](../../infra/terraform/README.md)) |
 | `modules/aws/karpenter`, `elasticache`, `msk`, `ecr` | 🟡 스텁 | `# TODO: 구현 예정` 만 있음 |
 | `modules/aws/edge` | 🟡 스텁 | 목표는 `modules/aws/waf` (ADR-0014, 0015 — CloudFront 미사용) |
 | `modules/aws/argocd-bootstrap` | ❌ | ADR-0009 (EKS 쪽 ArgoCD + root Application) |
 | `modules/gcp/argocd-bootstrap` | ✅ | helm_release + root Application |
 | `modules/gcp/network`, `cloudsql`, `gke`, `shared/vpn` | 🟡 스텁 | |
-| `envs/aws-main` | 🟡 | vpc + eks + aurora 조립. karpenter·elasticache·msk·ecr·edge·vpn 은 TODO 주석 |
+| `envs/aws-main` | 🟡 | vpc + eks + DB 모듈(교체 예정) 조립. karpenter·elasticache·msk·ecr·edge·vpn 은 TODO 주석 |
 
 ### 2.2 K8s / GitOps (`k8s/`)
 | 항목 | 설계 | 현재 | 근거 |
