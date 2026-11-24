@@ -30,7 +30,8 @@
 - [x] event-service: 출석(Bitmap), 퀴즈(Lua), Kafka 발행
 - [ ] event-service: 대기열(ZSET), 운영용 이벤트 생성·조회 API
 - [x] point consumer + DLQ
-- [x] 퀴즈 일괄 정산 (ADR-0017) — 정산 API·재정산
+- [x] ~~퀴즈 일괄 정산 (ADR-0017)~~ → 즉시 지급으로 복귀 (ADR-0018)
+- [ ] 퀴즈 대사 배치 (Redis 당첨자 ↔ 원장), consumer lag 알람 (ADR-0018 후속)
 - [x] Flyway 스키마, Testcontainers 통합 테스트, ArchUnit
 - [x] Dockerfile (multi-stage, non-root)
 

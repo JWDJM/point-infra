@@ -42,11 +42,11 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <access token>` �
 | POST | `/api/events/attendance` | 출석체크 (KST 하루 1회) | 202 지급 예정 / 409 이미 출석 | ✅ |
 | POST | `/api/events/{eventId}/queue` | 대기열 진입 | 200 `{ position }` | ❌ |
 | GET | `/api/events/{eventId}/queue/me` | 내 순번 | 200 `{ position, admitted }` | ❌ |
-| POST | `/api/events/{eventId}/answers` | 퀴즈 정답 제출 | 202 당첨(지급 예정 — 이벤트 종료 후 일괄 정산) / 200 낙첨(재고 소진) / 409 중복 / 410 이벤트 없음·마감 | ✅ |
+| POST | `/api/events/{eventId}/answers` | 퀴즈 정답 제출 | 202 당첨(지급 예정 — Kafka 경유 원장 반영, 보통 1초 안쪽) / 200 낙첨(재고 소진) / 409 중복 / 410 이벤트 없음·마감 | ✅ |
 | POST | `/api/events/{eventId}/open?stock=&amount=` | 이벤트 열기·초기화 (인증 없음) | 200 상태 | 🧪 |
 | GET | `/api/events/{eventId}/status` | 재고·참여자·당첨자 수 (인증 없음) | 200 | 🧪 |
 
-- 🧪 두 API 는 `@Profile("local")` 이라 **aws·gcp-dr 프로필에는 없다.** 운영에서 이벤트를 만들고(재고·금액 설정) 당첨자 수를 조회하는 경로는 아직 없다 → 정산 Job 의 `expectedCount`(Redis `SCARD event:{id}:winners`)와 [event-day 런북](../05-operations/runbooks/event-day.md) D-1 단계가 이것에 의존한다.
+- 🧪 두 API 는 `@Profile("local")` 이라 **aws·gcp-dr 프로필에는 없다.** 운영에서 이벤트를 만들고(재고·금액 설정) 당첨자 수를 조회하는 경로는 아직 없다 → [event-day 런북](../05-operations/runbooks/event-day.md) D-1 단계(이벤트 생성)와 종료 후 대사(당첨자 수)가 이것에 의존한다.
 - 프론트 이벤트 화면이 현재 이 두 API 를 호출한다 (point-frontend `features/event`).
 
 ## 운영·인프라 검증 (ops)
@@ -63,12 +63,7 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <access token>` �
 
 ## 관리자 (admin)
 
-`X-Admin-Token` 헤더(`ADMIN_API_TOKEN`)로 보호. 정산 Job·DR 런북 전용 — 관리자 역할(JWT role) 도입 시 교체. 토큰을 설정하지 않으면 항상 403.
-
-| 서비스 | Method | Path | 설명 |
-|---|---|---|---|
-| monolith | GET | `/api/admin/events/{eventId}/settlement` | 정산 현황 `state`: NOT_SETTLED / COMPLETE / INCOMPLETE, 대기·원장·미반영 건수 |
-| monolith | POST | `/api/admin/events/{eventId}/settlement` | 일괄 정산 `{"expectedCount": n}` → 200 / 409 `SETTLEMENT_NOT_READY`(대기 건 ≠ 당첨자 수). 이미 정산된 이벤트는 본문 없이 호출하면 누락분만 채움 (ADR-0017) |
+없음. ADR-0017 의 일괄 정산 API(`/api/admin/events/{id}/settlement`, `X-Admin-Token`)는 ADR-0018 로 제거됐다.
 
 ## DR 모드
 
@@ -92,7 +87,7 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <access token>` �
 
 | 필드 | 값 |
 |---|---|
-| `reason` | `QUIZ_REWARD` → 정산 대기열(`reward_pending`)에만 적재, 이벤트 종료 후 일괄 정산 (ADR-0017) / `ATTENDANCE_REWARD` → 원장에 즉시 반영 |
+| `reason` | `QUIZ_REWARD`, `ATTENDANCE_REWARD` → 둘 다 원장에 즉시 멱등 반영 (ADR-0018). 로그·대사 구분용 |
 | `idempotencyKey` | `{eventId}:{userId}` — 출석은 `eventId = attendance-{yyyyMMdd}` |
 | Kafka key | `userId` (같은 사용자 순서 보장) |
 - 소비 실패: 1초 간격 3회 재시도 후 `point.reward.dlq` (monolith `RewardConsumerErrorConfig`)

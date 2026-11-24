@@ -14,7 +14,6 @@ TODO: ClusterSecretStore, ExternalSecret 매니페스트 작성
 |---|---|
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | DB 접속 |
 | `JWT_PRIVATE_KEY` | access token 서명 — 같은 키여야 Failover 후에도 기존 토큰이 유효 |
-| `ADMIN_API_TOKEN` | `/api/admin/**` 퀴즈 일괄 정산 (ADR-0017). DR 쪽에도 있어야 Failback 전 수동 정산이 가능 |
 
 event-service 용 Secret (이름 예: `event-secrets`, aws 만 — DR 에는 event-service 없음):
 

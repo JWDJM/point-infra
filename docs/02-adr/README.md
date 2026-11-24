@@ -21,6 +21,7 @@
 | [0015](0015-web-pod-frontend.md) | 프론트엔드를 web 파드로 서빙 | Accepted |
 | [0016](0016-dr-dns-failover.md) | DR DNS 전환을 AWS 컨트롤 플레인 없이 수행 | Proposed |
 | [0017](0017-quiz-batch-settlement.md) | 퀴즈 이벤트 보상을 이벤트 종료 후 일괄 정산 | Accepted |
+| [0018](0018-quiz-immediate-reward.md) | 퀴즈 당첨 보상을 다시 즉시 지급 (ADR-0017 철회) | Proposed |
 
 ## 템플릿
 ```markdown
