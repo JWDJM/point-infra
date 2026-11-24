@@ -37,7 +37,7 @@
 ### Phase 2 — AWS 인프라
 - [x] bootstrap (S3 state)
 - [x] modules/aws/vpc, eks (작성 — apply 전)
-- [ ] modules/aws/rds (현재 aurora 스캐폴딩 → ADR-0013 교체), elasticache, msk, ecr, karpenter, waf (스텁)
+- [ ] modules/aws/rds (현재 ADR-0006 기준 DB 스캐폴딩 → ADR-0013 교체, #8), elasticache, msk, ecr, karpenter, waf (스텁)
 - [ ] envs/aws-main 조립
 - [ ] GitHub OIDC Role
 
