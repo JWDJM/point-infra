@@ -20,15 +20,13 @@
 | `point.point_wallet` | 사용자별 잔액 | ✅ |
 | `point.point_ledger` | 포인트 원장 (append-only) | ✅ |
 | `point.refund_request` | 환불 요청 | ✅ |
-| `point.reward_pending` | 퀴즈 당첨 정산 대기열 (이벤트당 사용자 1건, 멱등키 PK) — [ADR-0017](../02-adr/0017-quiz-batch-settlement.md) | ❌ 설계상 대상(DR 재정산 근거)이나 **미구현** — `dr_publication` 에는 있지만 `cdc/debezium-source-rds.json` `table.include.list` 에 없음 |
-| `point.event_settlement` | 이벤트별 정산 완료 기록 (`row_count`, `total_amount`) | ❌ 설계상 대상(DR 판정 기준)이나 **미구현** — 위와 같음 |
+| `point.reward_pending`, `point.event_settlement` | ADR-0017 일괄 정산용 — **ADR-0018(즉시 지급) 이후 미사용** (Flyway 이력 때문에 테이블만 남음, 빈 채) | ❌ (복제 대상 아님 — `dr_publication`·커넥터 모두 제외) |
 | `cs.notice` | 공지 | ❌ (DR 시 읽기 불필요, 사후 복구) |
 | `public.dr_heartbeat` | CDC 복제 지연(RPO) 측정 — Debezium 이 1초마다 갱신 | ✅ |
 | `cs.inquiry` *(계획, 미생성)* | 1:1 문의 | ❌ |
 | `asset.asset_snapshot` *(계획, 미생성)* | 자산 조회 캐시 | ❌ (재조회 가능) |
 
 > 실제 테이블은 point-backend `monolith/src/main/resources/db/migration` (Flyway) 기준. *(계획)* 표시는 아직 마이그레이션이 없다.
-> 정산 두 테이블을 복제하려면 커넥터 `table.include.list` 추가 + 추가 전 기존 행 보충(incremental snapshot)이 필요하다. 퀴즈 즉시 지급 복귀 제안(#21, ADR-0018)이 승인되면 두 테이블은 미사용이 된다.
 
 **원칙:** "잃으면 돈/신뢰 문제가 생기는 데이터"만 실시간 복제한다. 재생성 가능한 데이터는 제외해 Lag과 비용을 줄인다.
 
@@ -36,7 +34,7 @@
 
 | 토픽 | Key | 파티션 | 보존 | Producer → Consumer |
 |---|---|---|---|---|
-| `point.reward.requested` | userId | 12 | 7일 | event-service → monolith(point). 퀴즈 당첨은 정산 대기열로, 출석은 원장으로 즉시 (ADR-0017) |
+| `point.reward.requested` | userId | 12 | 7일 | event-service → monolith(point). 퀴즈 당첨·출석 모두 원장에 즉시 (ADR-0018) |
 | `point.reward.dlq` | userId | 3 | 14일 | point consumer (실패 건) |
 | `cdc.users.*`, `cdc.point.*`, `cdc.asset.linked_account` | PK | 6 | 3일 | Debezium → JDBC Sink |
 | `connect-configs/offsets/status` | - | - | compact | MSK Connect 내부 |

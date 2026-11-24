@@ -6,7 +6,7 @@
 |---|---|---|---|---|
 | Unit | JUnit 5 | 도메인 로직 (원장 계산, 판정) | PR | ✅ |
 | Architecture | ArchUnit | 모놀리스 모듈 경계 | PR | ✅ `ModuleBoundaryTest` |
-| Integration | Testcontainers (PostgreSQL, Redis, Kafka) | 멱등 소비, Lua 스크립트 | PR | ✅ 인증 흐름·JWT, 멱등 동시성, 정산 8종, consumer, 출석·퀴즈 동시성 |
+| Integration | Testcontainers (PostgreSQL, Redis, Kafka) | 멱등 소비, Lua 스크립트 | PR | ✅ 인증 흐름·JWT, 멱등 동시성, consumer, 출석·퀴즈 동시성 |
 | IaC | tflint, checkov, terraform validate | Terraform | PR | 🟡 정적 검증만 (원격 plan 비활성) |
 | Load | k6 | 이벤트 폭주 | 수동 / 릴리스 전 | 🟡 아래 |
 | Chaos | AWS FIS, kubectl (노드/파드 종료) | 복원력 | 월 1회 | ❌ |
