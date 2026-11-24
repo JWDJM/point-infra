@@ -13,7 +13,7 @@
 | 프론트엔드 (point-frontend) | ✅ 핵심 화면 | 로그인/가입, 홈, 이벤트, 결제, 내역, 관리자. **이벤트 화면이 local 전용 API 를 호출** (§3.3) |
 | Terraform (AWS) | 🟡 | vpc, eks, DB 모듈(ADR-0006 기준 — RDS 로 교체 예정) 작성. karpenter·elasticache·msk·ecr·edge 는 스텁, `argocd-bootstrap` 없음 |
 | Terraform (GCP) | 🟡 | argocd-bootstrap 작성. network·cloudsql·gke·vpn 스텁 |
-| K8s / GitOps | 🟡 | base(monolith, event-service, maintenance), overlays, argocd apps 일부. **Ingress 사용**(Gateway API 아님), web·db-init·ExternalSecret 없음 |
+| K8s / GitOps | 🟡 | base(monolith, event-service, maintenance), overlays, argocd apps 일부. Gateway API(Gateway·HTTPRoute) 매니페스트 ✅, web·db-init·ExternalSecret 없음 |
 | CI/CD | 🟡 | backend·frontend `ci.yml`(테스트·빌드·Trivy), infra `terraform-plan.yml`(정적 검증). 이미지 push·태그 bump·apply·drift 는 TODO |
 | CDC | ✅ 설정 파일 | Publication, Source/Sink 커넥터 JSON. 배포(MSK Connect)는 msk 모듈 스텁 |
 | DR 자동화 | 🟡 | `dr-failover.yml` 단계 골격, SQL 3종(시퀀스·지갑·정산) 작성. 셸 스크립트 5종은 TODO |
@@ -39,16 +39,16 @@
 ### 2.2 K8s / GitOps (`k8s/`)
 | 항목 | 설계 | 현재 | 근거 |
 |---|---|---|---|
-| 트래픽 진입 | Gateway + HTTPRoute (`/api/events` → event-service, `/api` → monolith, `/` → web) | `overlays/*/ingress.yaml` (Ingress). `/` 가 monolith 로 감, HTTPS 443 리스너만 있고 인증서 주석 처리 | ADR-0014 |
+| 트래픽 진입 | Gateway + HTTPRoute (`/api/events` → event-service, `/api` → monolith, `/` → web) | 🟡 `overlays/{aws,gcp-dr}/gateway.yaml` ✅ (HTTP 80 리스너, AWS: `LoadBalancerConfiguration`·`TargetGroupConfiguration`, GCP: `HealthCheckPolicy`). **적용 전 필요**: Terraform sg-alb(`point-main-alb`)·LBC Pod Identity IAM(#8 영역), GKE Gateway API 활성화(gke 모듈 스텁), `/` → web 은 #15 전까지 backend 없음. HTTPS 443 은 도메인·ACM 후 | ADR-0014 |
 | 프론트 | `k8s/base/web` (nginx 파드) | ❌ 없음 | ADR-0015 |
 | DB 초기화 | `overlays/aws/db-init.yaml` (`app_rw` 생성 Sync Job) | ❌ 없음 | ADR-0013 |
 | 시크릿 | ExternalSecret `monolith-db` (+ event-service 공개키) | ❌ 매니페스트 없음 (`platform/external-secrets/README.md` 에 키 목록만) | ADR-0010 |
 | event-service 시크릿 | `JWT_PUBLIC_KEY` 주입 | ❌ base deployment 에 `secretRef` 없음 → aws 프로필에서 **기동 실패** (공개키·JWKS URI 둘 다 없으면 예외) | — |
 | 앱 설정 | Redis·Kafka 주소 등 | ❌ overlay ConfigMap 에 `REDIS_HOST`·`KAFKA_BOOTSTRAP` 없음 (기본값 localhost) | — |
-| 플랫폼 Application | LBC, ESO, KEDA, Karpenter, 모니터링 | 🟡 `argocd/aws/apps.yaml` 에 apps-aws·karpenter-nodepools 만 (나머지 TODO) | ADR-0009 |
+| 플랫폼 Application | LBC, ESO, KEDA, Karpenter, 모니터링 | 🟡 `argocd/aws/apps.yaml` 에 apps-aws·karpenter-nodepools·aws-load-balancer-controller(차트 3.6.3 + Gateway API CRD v1.6.0 + GatewayClass, `platform/gateway/aws`). ESO·KEDA·모니터링 TODO | ADR-0009, 0014 |
 | Sync Window | 이벤트 시간 배포 금지 | ✅ `argocd/aws/sync-window.yaml` | |
 | KEDA | Cron + CPU (event-service), Kafka lag (monolith) | 🟡 event-service ScaledObject ✅, monolith Kafka lag ❌ | ADR-0002 |
-| maintenance (DR) | `/api/events/**` 503 | ✅ `base/maintenance` (nginx) | ADR-0004 |
+| maintenance (DR) | `/api/events/**` 503 | ✅ `base/maintenance` (nginx, LB 헬스체크용 `/healthz` 200) | ADR-0004 |
 | PDB / probe / non-root | 모든 Deployment 필수 | ✅ monolith·event-service base | AGENTS.md |
 
 ### 2.3 CI/CD (`.github/workflows`, 각 레포)

@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../../base/monolith
   - ../../base/event-service
-  - ingress.yaml
+  - gateway.yaml          # Gateway + HTTPRoute (ADR-0014)
 configMapGenerator:
   - name: monolith-config
     literals: [SPRING_PROFILES_ACTIVE=aws, KAFKA_ENABLED=true, DR_MODE=false]

@@ -4,7 +4,7 @@ kind: Kustomization
 resources:
   - ../../base/monolith
   - ../../base/maintenance
-  - ingress.yaml
+  - gateway.yaml          # Gateway + HTTPRoute (ADR-0014)
 configMapGenerator:
   - name: monolith-config
     literals: [SPRING_PROFILES_ACTIVE=gcp-dr, KAFKA_ENABLED=false, DR_MODE=true]
