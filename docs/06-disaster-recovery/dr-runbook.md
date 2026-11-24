@@ -30,7 +30,7 @@
 | 8 | 앱 기동 | ArgoCD 자동 동기화 (monolith, maintenance) | readiness OK | 이미지 태그/시크릿 확인 |
 | 9 | 트래픽 전환 | `scripts/dr/switch-dns.sh to-gcp` | `dig` 결과 GCP IP | §4 DNS 전환 시나리오 |
 | 10 | 스모크 테스트 | `smoke-test.sh` (`DR_BASE_URL` = GitHub Variables) — 로그인 → 잔액 조회 → 내역 조회 | 200 OK | 롤백 판단 |
-| 11 | 공지 | 이벤트 점검 공지, 상태 페이지 | - | - |
+| 11 | 공지 | 이벤트 점검 공지, 상태 페이지. **"이벤트 보상은 서비스 정상화 후 지급"** (미반영 당첨은 Failback 6단계에서 반영, ADR-0018) | - | - |
 
 > **왜 이 순서인가:** Cloud SQL 은 Private IP(`10.30.0.0/20`) 전용이라 GitHub-hosted runner 에서는 `psql` 로 접속할 수 없다. runner 는 GCP API(gcloud, Terraform)만 쓰고, SQL 이 필요한 6·7단계는 GKE 생성 직후 클러스터 내부(같은 VPC)의 일회성 Pod/Job 으로 실행한다. monolith 는 7단계(app_rw LOGIN) 전까지 readiness 실패 상태로 대기한다.
 >
@@ -54,12 +54,18 @@
 
 | # | 단계 | 비고 |
 |---|---|---|
-| 1 | AWS 정상화 확인, `aws-main` plan 무변경 확인 | |
+| 1 | AWS 정상화 확인, `aws-main` plan 무변경 확인 | ⚠️ AWS 가 살아나도 **AWS monolith 는 0 으로 축소(또는 `KAFKA_ENABLED=false`)한 채 유지** — DR 기간 쓰기가 없는 RDS 에 consumer 가 먼저 지급하면 동기화와 충돌한다 (ADR-0018) |
 | 2 | RDS를 Cloud SQL 최신 상태로 동기화 | 방법 A: 역방향 CDC (Cloud SQL → RDS) / 방법 B: 점검 중 덤프·복원 |
 | 3 | 점검 시작 — GCP 쓰기 중단 (maintenance 모드) | 쓰기 동결 |
 | 4 | 최종 동기화 + 행 수/체크섬 검증 | |
 | 5 | DNS를 AWS로 전환 | |
-| 6 | Kafka consumer 재개 → 미반영 reward 처리 (멱등) | 퀴즈 당첨도 즉시 지급 (ADR-0018) — DR 중 일부만 지급된 이벤트가 여기서 채워진다 |
+| 6-1 | consumer group `point-ledger` 오프셋 되감기 (consumer 정지 상태에서) | `kafka-consumer-groups.sh --group point-ledger --topic point.reward.requested --reset-offsets --to-datetime <last_replicated_at − 여유, Failover 6단계 기록값> --execute` (MSK IAM 인증은 `--command-config`). RDS 에만 있던 지급이 2단계 동기화로 지워졌어도 다시 채워진다. 이미 있는 건은 멱등키로 무시 |
+| 6-2 | Kafka consumer 재개 (AWS monolith 스케일 원복) → 미반영 reward 처리 (멱등) | 퀴즈 당첨도 즉시 지급 (ADR-0018) — DR 중 일부만 지급된 이벤트가 여기서 채워진다. consumer lag 0 까지 대기 |
+| 6-3 | DLQ(`point.reward.dlq`) 확인·재처리 | |
+| 6-4 | 대사: 이벤트별 Redis 당첨자 Set ↔ 원장(`source=EVENT, reference_id=eventId`) | 차이 = 누락 → 재발행. Redis 소실 시 MSK 메시지 기준. 대사 배치 미구현 (ADR-0018 후속) → 수동 쿼리 |
+| 6-5 | 장애 시점에 열려 있던 이벤트를 닫은 뒤 event-service 재개 | Failback 후 새 참여 방지 |
 | 7 | 정방향 CDC 재구성 (Debezium slot 재생성, 초기 스냅샷) | |
 | 8 | `terraform destroy envs/gcp-dr-compute` | 비용 원복 |
 | 9 | Postmortem 작성 | |
+
+> **지급 원칙 (ADR-0018):** DB 에 반영된 지급은 유지하고, 반영되지 않은 지급만 MSK 에 남은 메시지로 반영한다. 경계 조건 두 가지 — ① RDS 에만 커밋된 원장(CDC 지연)은 오프셋이 이미 커밋돼 있어 2단계 동기화로 지워지면 다시 오지 않는다 → 6-1 오프셋 되감기 ② DR 기간이 토픽 보존 기간(7일)을 넘기면 메시지가 만료된다 → 만료 전 토픽 백업.

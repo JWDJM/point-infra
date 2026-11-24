@@ -25,14 +25,21 @@ Redis Lua 판정(202) → Kafka point.reward.requested → monolith consumer
 - DR 승격의 `settle-incomplete-events.sql` 단계, CDC Publication 의 두 테이블, 이벤트 종료 후 정산 런북 단계를 제거한다.
 
 ## DR 에 미치는 영향 (ADR-0017 이 막던 문제가 돌아온다)
+**원칙:** DR 중에는 event-service 를 복구하지 않는다(ADR-0004). DB 에 이미 반영된 지급은 그대로 두고, **반영되지 않은 지급만 AWS 복구 후 MSK 에 남은 메시지로 반영**한다 (멱등키로 중복 없음).
+
 | 상황 | 결과 | 대응 |
 |---|---|---|
 | 피크 중 재해, 일부 당첨이 MSK 에만 있음 (consumer lag) | DR(Cloud SQL) 쪽에는 **일부 당첨자만 지급된 상태** | DR 중에는 그대로 운영. 지급된 건은 원장이 정본 |
-| Failback (AWS 복구) | MSK 잔여 메시지를 consumer 가 이어서 소비 → 나머지 당첨자 지급. 이미 지급된 건은 `idempotency_key` UNIQUE 로 무시 | 자동 (멱등) |
+| Failback (AWS 복구) | MSK 잔여 메시지를 consumer 가 이어서 소비 → 나머지 당첨자 지급. 이미 지급된 건은 `idempotency_key` UNIQUE 로 무시 | 자동 (멱등) — 단 아래 두 경계 조건을 runbook 으로 막는다 |
+| RDS 에는 커밋됐지만 CDC 지연(≤ 5초)으로 Cloud SQL 에 없는 원장 | 이 메시지들은 MSK 오프셋이 **이미 커밋됨** → Failback 동기화에서 RDS 를 Cloud SQL 기준으로 덮어쓰면 DB 에서도 사라지고 MSK 에서도 다시 오지 않는다 | consumer 재개 전 **오프셋을 `last_replicated_at` − 여유 시각으로 되감는다**. 다시 들어오는 메시지 중 이미 있는 건은 멱등키로 무시, 빠진 건만 채워진다 ([dr-runbook §5](../06-disaster-recovery/dr-runbook.md#5-failback-절차-계획된-점검) 6-1) |
+| DR 기간이 토픽 보존 기간(7일)을 넘김 | 미반영 메시지가 만료돼 **복원 불가** | 보존 기간을 예상 최대 DR 기간 이상으로 상향 검토 (후속). 넘길 것 같으면 만료 전 토픽을 백업 |
+| AWS 가 먼저 살아나 AWS monolith consumer 가 Failback 전에 소비 시작 | DR 기간 쓰기가 없는 RDS 에 지급 → Failback 동기화와 충돌 | AWS 복구를 확인하면 **AWS monolith 를 0 으로 축소(또는 `KAFKA_ENABLED=false`)한 채 유지**, Failback 6단계에서만 재개 |
 | AWS 영구 소실 | MSK·Redis 당첨 기록 소실 → **미지급 당첨자 명단을 복원할 수 없다** | 비즈니스 결정 (해당 이벤트 재진행 / 참여자 일괄 보상). RPO 범위의 데이터 손실로 받아들인다 |
 
 - 부분 지급 상태의 **판정 기준**은 없어진다. 대신 lag 를 낮게 유지하는 것이 RPO 를 줄이는 수단이다 (consumer lag 알람, 피크 전 파티션·consumer 수 점검).
 - 지급은 건별로 원자적이다 (원장 INSERT + 지갑 UPDATE 한 트랜잭션). "이벤트 단위 원자성"만 포기한다.
+- 반영이 끝난 뒤 **완료 확인**: 이벤트별 Redis 당첨자 Set ↔ 원장(`source=EVENT, reference_id=eventId`) 대사. Redis 가 소실됐으면 MSK 메시지가 유일한 근거다.
+- 운영: 장애 시점에 열려 있던 이벤트는 event-service 재개 전에 닫는다 (Failback 후 새 참여 방지). DR 중 "이벤트 보상은 서비스 정상화 후 지급" 공지. DLQ(`point.reward.dlq`) 건도 Failback 때 처리한다.
 
 ## 고려한 대안
 | 대안 | 장점 | 단점 | 판단 |
@@ -48,4 +55,4 @@ Redis Lua 판정(202) → Kafka point.reward.requested → monolith consumer
 - (+) 퀴즈·출석이 같은 consumer 경로 → 코드·테스트 단순화
 - (−) 재해 시 이벤트 단위 원자성·판정 기준 상실 (위 표). Failback 으로 대부분 보충되지만 AWS 영구 소실 시 미지급 명단 복원 불가
 - (−) 피크 중 consumer 가 원장 행 잠금을 다시 잡는다 (ADR-0017 의 lag 감소 효과 상실) → 부하 테스트로 lag 를 다시 측정할 것
-- 후속: Redis 당첨자 Set ↔ 원장(`source=EVENT, reference_id=eventId`) **대사 배치** (domain-model §4), consumer lag 알람, inbox Sink 재검토
+- 후속: Redis 당첨자 Set ↔ 원장(`source=EVENT, reference_id=eventId`) **대사 배치** (domain-model §4), consumer lag 알람, `point.reward.requested` 보존 기간 상향 검토, Failback 오프셋 되감기 스크립트, inbox Sink 재검토
