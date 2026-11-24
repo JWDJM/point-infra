@@ -9,14 +9,14 @@
 
 | 영역 | 상태 | 요약 |
 |---|---|---|
-| 애플리케이션 (point-backend) | ✅ 핵심 경로 | 회원가입·로그인(JWT + refresh token), 잔액·내역·사용, 출석, 퀴즈 + 일괄 정산, Kafka + DLQ, 운영 API. asset·cs·대기열·환불은 없음 |
+| 애플리케이션 (point-backend) | ✅ 핵심 경로 | 회원가입·로그인(JWT + refresh token), 잔액·내역·사용, 출석, 퀴즈(즉시 지급, ADR-0018), Kafka + DLQ, 운영 API. asset·cs·대기열·환불은 없음 |
 | 프론트엔드 (point-frontend) | ✅ 핵심 화면 | 로그인/가입, 홈, 이벤트, 결제, 내역, 관리자. **이벤트 화면이 local 전용 API 를 호출** (§3.3) |
 | Terraform (AWS) | 🟡 | vpc, eks, DB 모듈(ADR-0006 기준 — RDS 로 교체 예정) 작성. karpenter·elasticache·msk·ecr·edge 는 스텁, `argocd-bootstrap` 없음 |
 | Terraform (GCP) | 🟡 | argocd-bootstrap 작성. network·cloudsql·gke·vpn 스텁 |
 | K8s / GitOps | 🟡 | base(monolith, event-service, maintenance), overlays, argocd apps 일부. Gateway API(Gateway·HTTPRoute) 매니페스트 ✅, web·db-init·ExternalSecret 없음 |
 | CI/CD | 🟡 | backend·frontend `ci.yml`(테스트·빌드·Trivy), infra `terraform-plan.yml`(정적 검증). 이미지 push·태그 bump·apply·drift 는 TODO |
 | CDC | ✅ 설정 파일 | Publication, Source/Sink 커넥터 JSON. 배포(MSK Connect)는 msk 모듈 스텁 |
-| DR 자동화 | 🟡 | `dr-failover.yml` 단계 골격, SQL 3종(시퀀스·지갑·정산) 작성. 셸 스크립트 5종은 TODO |
+| DR 자동화 | 🟡 | `dr-failover.yml` 단계 골격, SQL 2종(시퀀스·지갑) 작성. 셸 스크립트 5종은 TODO |
 | 부하 테스트 | 🟡 | k6 S2·S3 만, **`X-User-Id` 헤더 기반이라 현재 JWT 인증과 맞지 않음** |
 | 관측성 | 🟡 | 앱이 `/actuator/prometheus` 노출. kube-prometheus-stack·Fluent Bit·대시보드·알람 없음 |
 
@@ -65,7 +65,7 @@
 ### 2.4 DR 스크립트 (`scripts/dr`)
 | 파일 | 상태 |
 |---|---|
-| `fix-sequences.sql`, `reconcile-wallet.sql`, `settle-incomplete-events.sql` | ✅ |
+| `fix-sequences.sql`, `reconcile-wallet.sql` | ✅ |
 | `promote-cloudsql.sh`, `record-rpo.sh`, `wait-ready.sh`, `smoke-test.sh`, `switch-dns.sh` | 🟡 TODO (`switch-dns.sh` 는 ADR-0016 결정 대기) |
 
 ## 3. 애플리케이션
@@ -78,18 +78,17 @@
 | asset / cs | — | `GET /api/assets`, `GET /api/cs/notices` (프론트 폴더도 비어 있음) |
 | 이벤트 | `attendance`, `{id}/answers` | `GET /api/events/active`, 대기열 `{id}/queue`, `{id}/queue/me` |
 | 이벤트 운영 | `{id}/open`, `{id}/status` — **`local` 프로필 전용** | 운영(aws) 프로필에서 이벤트를 만드는 API·Job (event-day 런북 D-1) |
-| 관리자 | `GET/POST /api/admin/events/{id}/settlement` | |
 | 운영·헬스 | `/api/system/{info,whoami,ledger}`, `/api/events/system/{info,whoami}`, `/api/health`, actuator | |
 
 ### 3.2 데이터·도메인
 | 항목 | 상태 | 비고 |
 |---|---|---|
-| 스키마 (Flyway) | ✅ | users(app_user, user_credential, **refresh_token**), asset.linked_account, point(wallet, ledger, refund_request, reward_pending, event_settlement), cs.notice, public.dr_heartbeat |
+| 스키마 (Flyway) | ✅ | users(app_user, user_credential, **refresh_token**), asset.linked_account, point(wallet, ledger, refund_request, reward_pending·event_settlement — ADR-0018 로 미사용), cs.notice, public.dr_heartbeat |
 | `cs.inquiry`, `asset.asset_snapshot` | ❌ | [data-architecture](../01-architecture/data-architecture.md) 표에만 있음 |
 | 원장 append-only + 멱등키 | ✅ | 원장 UPDATE/DELETE 코드 없음, `idempotency_key` UNIQUE, 동시성 테스트 있음 |
 | 지갑 동시성 | ✅ | **비관적 락** (`SELECT ... FOR UPDATE`). `version` 컬럼은 증가만 하고 낙관적 락 판정에는 쓰지 않음 |
 | 취소·환불·만료 | ❌ | `LedgerType` 에 `REFUND, EXPIRE, CANCEL` 정의만, `refund_request` 테이블만 존재 |
-| 퀴즈 일괄 정산 (ADR-0017) | ✅ | 정산·재정산·DR 보충 테스트 8개 |
+| 퀴즈 즉시 지급 (ADR-0018, ADR-0017 철회) | ✅ | consumer 테스트 (퀴즈·출석 즉시 반영, 키 길이 검증) |
 | 대사 배치 (일 1회) | ❌ | 출석 비트맵↔원장, 지갑↔원장 합계, RDS↔Cloud SQL — [domain-model §4](../03-development/domain-model.md). DR 전환용 `reconcile-wallet.sql` 만 있음 |
 | Redis 키 (ADR-0007) | 🟡 | 실제 키: `event:{id}:stock`·`participants`·`winners`·`amount` (`{id}` 는 클러스터 해시태그), `attendance:{yyyyMMdd}` Bitmap(TTL 2일). **`event:{id}:queue` 없음, 이벤트 키 TTL 미설정** |
 
@@ -106,7 +105,7 @@
 ## 4. 테스트
 | 레벨 | 상태 | 비고 |
 |---|---|---|
-| Unit / Integration (Testcontainers) | ✅ | 인증 흐름, JWT, 멱등성 동시성, 정산 8종, consumer, Redis 동시성(출석·퀴즈) |
+| Unit / Integration (Testcontainers) | ✅ | 인증 흐름, JWT, 멱등성 동시성, consumer, Redis 동시성(출석·퀴즈) |
 | Architecture (ArchUnit) | ✅ | `ModuleBoundaryTest` |
 | IaC | 🟡 | 정적 검증만 (원격 plan 비활성) |
 | Load (k6) | 🟡 | S2·S3 스크립트만, 인증이 `X-User-Id` 헤더 → **JWT(`Authorization: Bearer`) 로 전환 필요**. S1·S4~S6 없음 |
@@ -122,7 +121,7 @@ point-infra 밖의 검증 환경에서 실제로 구축하며 확인한 것. 이
 | db-init Job SQL | K8s 는 `command`/`args` 의 `$$` 를 `$` 로 바꾼다 → `DO $$` 대신 `DO $do$ ... $do$` |
 | db-init 를 ArgoCD hook 으로 | PreSync Job 이 읽는 Secret 을 만드는 ExternalSecret 도 PreSync hook 이어야 한다 (일반 리소스는 hook 뒤에 생성 → 교착) |
 | event-service 인증 | `JWT_PUBLIC_KEY` 가 `JWT_JWK_SET_URI` 보다 우선. 공개키는 monolith 개인키(PKCS#8)와 같은 쌍 |
-| local 프로필 오버라이드 | `application-local.yml` 의 고정값이 `${ENV}` 자리표시자를 이긴다 → 속성 직접 지정 환경변수(`APP_ADMIN_APITOKEN` 등, 하이픈 제거) 사용 |
+| local 프로필 오버라이드 | `application-local.yml` 의 고정값이 `${ENV}` 자리표시자를 이긴다 → 속성 직접 지정 환경변수(하이픈 제거 — 예: `app.auth.cookie-secure` → `APP_AUTH_COOKIESECURE`) 사용 |
 | Karpenter IAM | 컨트롤러 정책이 관리형 정책 한도(6,144자)를 넘음 → EKS 모듈 karpenter 서브모듈 `enable_inline_policy = true` |
 | 노드 SG | EKS 모듈 기본 노드 간 허용은 1025-65535 + 53 → 컨테이너 포트는 1025 이상 사용 |
 | DB 서브넷 라우트 | VPC 모듈은 `create_database_subnet_route_table = true` 가 아니면 Data 서브넷을 private(NAT) 라우트에 붙인다 → 3-Tier 격리 깨짐 |

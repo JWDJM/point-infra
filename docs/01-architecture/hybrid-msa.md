@@ -54,8 +54,7 @@ com.pointplatform.monolith
 - **at-least-once 전달 + 멱등 소비** = 사실상 exactly-once 반영
   - Producer: `enable.idempotence=true`, `acks=all`
   - Consumer: `point_ledger.idempotency_key` UNIQUE, 중복 시 무시
-- 퀴즈 당첨은 이벤트 종료 후 **일괄 정산** — 정산 전제조건이 "Redis 당첨자 수 = 정산 대기 건수" 라서 정산 자체가 대사를 겸한다 (ADR-0017)
-- 출석 보상 등 즉시 반영 건은 Redis 기록 ↔ 원장을 **대사(Reconciliation) 배치**로 비교 — *미구현* ([domain-model §4](../03-development/domain-model.md))
+- 퀴즈 당첨·출석 보상 모두 즉시 반영 (ADR-0018) → Redis 당첨 기록·출석 비트맵 ↔ 원장을 이벤트 종료 후 **대사(Reconciliation) 배치**로 비교 — *미구현* ([domain-model §4](../03-development/domain-model.md))
 
 ## 6. 향후 진화 경로
 
