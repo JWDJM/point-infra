@@ -2,7 +2,7 @@
 
 ## 1. 디렉터리 구조
 
-> 아래 구조는 목표 설계 기준이다. 현재 스캐폴딩과의 차이(aurora → rds, edge → waf 등): [infra/terraform/README](../../infra/terraform/README.md)
+> 아래 구조는 목표 설계 기준이다. 현재 스캐폴딩과의 차이(DB 모듈 → rds, edge → waf 등): [infra/terraform/README](../../infra/terraform/README.md)
 
 ```
 infra/terraform/
@@ -14,7 +14,7 @@ infra/terraform/
 │   │   ├── vpc/          # 3-tier subnet, NAT, VPC Endpoints
 │   │   ├── eks/          # 클러스터, Managed NodeGroup(AL2023), Pod Identity, 애드온
 │   │   ├── karpenter/    # IAM, SQS(Interruption), Helm
-│   │   ├── rds/          # PostgreSQL 16, 파라미터 그룹(logical replication, force_ssl), KMS  ※ 현재 스캐폴딩: aurora/
+│   │   ├── rds/          # PostgreSQL 16, 파라미터 그룹(logical replication, force_ssl), KMS  ※ 현재 스캐폴딩은 ADR-0006 기준 DB 모듈 (#8 에서 교체)
 │   │   ├── elasticache/
 │   │   ├── msk/          # 클러스터 + MSK Connect(Debezium)
 │   │   ├── ecr/          # monolith, event-service, web

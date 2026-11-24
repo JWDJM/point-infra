@@ -112,7 +112,7 @@ point-infra/
 
 - [ ] Phase 0 — 설계 및 문서화
 - [ ] Phase 1 — 애플리케이션 MVP (로컬) — 핵심 경로 완료, asset·cs·대기열·환불 남음
-- [ ] Phase 2 — AWS Main 인프라 (Terraform) — vpc·eks 작성, aurora → rds 교체 예정, 나머지 모듈 스텁
+- [ ] Phase 2 — AWS Main 인프라 (Terraform) — vpc·eks 작성, DB 모듈은 RDS for PostgreSQL 16(ADR-0013)으로 교체 예정(#8), 나머지 모듈 스텁
 - [ ] Phase 3 — EKS + GitOps + 오토스케일링
 - [ ] Phase 4 — CDC 복제 + GCP Standby
 - [ ] Phase 5 — DR Failover 자동화 + 훈련
