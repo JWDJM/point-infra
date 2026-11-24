@@ -37,7 +37,7 @@ com.pointplatform.monolith
 
 규칙:
 - 모듈 간 호출은 `application` 계층의 public 인터페이스로만 한다.
-- 다른 모듈의 `domain`, `infra` 패키지를 직접 import하지 않는다 (ArchUnit 테스트로 강제).
+- 다른 모듈의 `domain`, `infra` 패키지를 직접 import하지 않는다 (ArchUnit 테스트로 강제 — point-backend `ModuleBoundaryTest`).
 - 모듈별로 테이블을 소유하고 다른 모듈 테이블을 조인하지 않는다.
 → 향후 point 모듈 분리가 필요해져도 경계가 이미 있어 비용이 낮다.
 
@@ -55,7 +55,7 @@ com.pointplatform.monolith
   - Producer: `enable.idempotence=true`, `acks=all`
   - Consumer: `point_ledger.idempotency_key` UNIQUE, 중복 시 무시
 - 퀴즈 당첨은 이벤트 종료 후 **일괄 정산** — 정산 전제조건이 "Redis 당첨자 수 = 정산 대기 건수" 라서 정산 자체가 대사를 겸한다 (ADR-0017)
-- 출석 보상 등 즉시 반영 건은 Redis 기록 ↔ 원장을 **대사(Reconciliation) 배치**로 비교
+- 출석 보상 등 즉시 반영 건은 Redis 기록 ↔ 원장을 **대사(Reconciliation) 배치**로 비교 — *미구현* ([domain-model §4](../03-development/domain-model.md))
 
 ## 6. 향후 진화 경로
 
