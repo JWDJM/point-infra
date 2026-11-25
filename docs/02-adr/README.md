@@ -22,6 +22,8 @@
 | [0016](0016-dr-dns-failover.md) | DR DNS 전환을 AWS 컨트롤 플레인 없이 수행 | Proposed |
 | [0017](0017-quiz-batch-settlement.md) | 퀴즈 이벤트 보상을 이벤트 종료 후 일괄 정산 | Accepted |
 | [0018](0018-quiz-immediate-reward.md) | 퀴즈 당첨 보상을 다시 즉시 지급 (ADR-0017 철회) | Proposed |
+| [0019](0019-redis-stream-ledger-sync.md) | 원장 반영 경로를 Kafka 에서 Redis Stream 으로 변경 (ADR-0008 대체) | Proposed |
+| [0020](0020-postgresql-logical-replication.md) | DR 복제를 PostgreSQL 네이티브 논리 복제로 변경 (ADR-0005 대체) | Proposed |
 
 ## 템플릿
 ```markdown
