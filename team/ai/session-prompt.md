@@ -12,7 +12,7 @@
 - 모듈러 모놀리스(user/asset/point/cs) + 이벤트 전용 MSA(event-service)
 - AWS Main(EKS, RDS PostgreSQL 16, ElastiCache) / GCP Pilot Light DR(Cloud SQL 복제, 장애 시 GKE)
 - Terraform + ArgoCD(GitOps) + GitHub Actions
-- 레포: point-infra(인프라·문서), point-backend(Java 21/Spring Boot 3), point-frontend(React+Vite+TS)
+- 레포: point-infra(인프라·문서), point-backend(Java 21/Spring Boot 4), point-frontend(React+Vite+TS)
 
 [확정 사항 — 대체 제안 금지]
 EKS+Karpenter+KEDA(Lambda/ECS/ASG 금지), PostgreSQL 논리 복제, Redis Lua 판정, Redis Stream 비동기 원장+멱등키,

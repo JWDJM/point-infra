@@ -1,4 +1,4 @@
-<!-- ===================== COMMON RULES START (v1.4.0) =====================
+<!-- ===================== COMMON RULES START (v1.5.0) =====================
   원본: point-infra/team/ai/AGENTS.common.md
   이 블록은 scripts/sync-ai-rules.sh 로 각 레포 AGENTS.md 에 복사된다.
   ⚠️ 각 레포에서 이 블록을 직접 수정하지 말 것. 원본을 PR로 수정 → 동기화.
@@ -42,7 +42,7 @@
 | 역할 분리 | Terraform = 클라우드 + ArgoCD 설치까지 / 나머지 K8s = ArgoCD | ADR-0009 |
 | DR 독립성 | DR 경로에서 AWS 리소스 참조 금지 | ADR-0010 |
 | 네트워크 | AWS `10.10.0.0/16`, GCP `10.20.0.0/16` 등 CIDR 표 변경 금지 | network-design.md |
-| 언어/버전 | Java 21, Spring Boot 3.x, Node 20 LTS, TypeScript strict | 각 레포 README |
+| 언어/버전 | Java 21, Spring Boot 4.x, Node 20 LTS, TypeScript strict | 각 레포 README, ADR-0021 |
 
 ## 3. 작업 범위 규칙 (충돌 방지의 핵심)
 
@@ -201,4 +201,4 @@ gh api --method POST repos/JWDJM/<레포>/issues/PARENT/sub_issues -F sub_issue_
 - 이슈를 만들기 전에는 반드시 Step 1의 검색을 먼저 한다 (중복 생성 금지).
 - 보드 설정, 라벨 정의, 워크플로 변경은 사람이 한다.
 
-<!-- ====================== COMMON RULES END (v1.4.0) ====================== -->
+<!-- ====================== COMMON RULES END (v1.5.0) ====================== -->

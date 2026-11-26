@@ -1,5 +1,5 @@
 # ADR-0021: Spring Boot 3.5 → 4.1 업그레이드
-- 상태: **Proposed**
+- 상태: **Accepted** (승인: 2026-11-26 KST, #41)
 - 날짜: 2026-11-26 KST
 - 대체: 없음 (AGENTS 공통 규칙 Decision Lock "언어/버전"의 `Spring Boot 3.x` 를 `4.x` 로 바꾼다)
 - 관련: point-backend #10 (CI Trivy CRITICAL), #11 (tomcat·netty 패치)
