@@ -1,4 +1,4 @@
-<!-- ===================== COMMON RULES START (v1.3.0) =====================
+<!-- ===================== COMMON RULES START (v1.4.0) =====================
   원본: point-infra/team/ai/AGENTS.common.md
   이 블록은 scripts/sync-ai-rules.sh 로 각 레포 AGENTS.md 에 복사된다.
   ⚠️ 각 레포에서 이 블록을 직접 수정하지 말 것. 원본을 PR로 수정 → 동기화.
@@ -21,7 +21,7 @@
   | 레포 | 역할 |
   |---|---|
   | `point-infra` | Terraform, K8s 매니페스트, CDC, DR, **설계 문서·ADR의 원본** |
-  | `point-backend` | Spring Boot (monolith, event-service), OpenAPI 명세 |
+  | `point-backend` | Spring Boot (core-service, event-service), OpenAPI 명세 |
   | `point-frontend` | React + TypeScript SPA |
 - **팀원 GitHub 계정:** `msugr`, `ZZGG2`, `didhddl49`, `sia9876`, `bbben2`. assign·멘션에는 이 계정만 쓴다. 사용자가 이름으로 말해서 어느 계정인지 모르면 추측하지 말고 계정을 묻는다.
 
@@ -31,10 +31,10 @@
 
 | 영역 | 확정 사항 | 근거 |
 |---|---|---|
-| 아키텍처 | event 도메인만 MSA, 나머지는 monolith | ADR-0001 |
+| 아키텍처 | event 도메인만 MSA, 나머지는 core-service | ADR-0001 |
 | 확장 | EKS + Karpenter + KEDA (Lambda, ECS, ASG 도입 금지) | ADR-0002 |
 | 트래픽 진입 | Gateway API (AWS: ALB / GCP: GKE Gateway), 프론트는 web 파드 | ADR-0014, 0015 |
-| DR | GCP Pilot Light, DR 시 monolith만 복구 | ADR-0003, 0004 |
+| DR | GCP Pilot Light, DR 시 core-service만 복구 | ADR-0003, 0004 |
 | 복제 | PostgreSQL 네이티브 논리 복제 (비동기, PUBLICATION → SUBSCRIPTION) | ADR-0020 |
 | DB | PostgreSQL 16 (RDS / Cloud SQL) | ADR-0006, 0013 |
 | 이벤트 판정 | Redis Lua 원자 처리 (DB 락 사용 금지) | ADR-0007 |
@@ -201,4 +201,4 @@ gh api --method POST repos/JWDJM/<레포>/issues/PARENT/sub_issues -F sub_issue_
 - 이슈를 만들기 전에는 반드시 Step 1의 검색을 먼저 한다 (중복 생성 금지).
 - 보드 설정, 라벨 정의, 워크플로 변경은 사람이 한다.
 
-<!-- ====================== COMMON RULES END (v1.3.0) ====================== -->
+<!-- ====================== COMMON RULES END (v1.4.0) ====================== -->

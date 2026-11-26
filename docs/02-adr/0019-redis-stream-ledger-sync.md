@@ -1,5 +1,5 @@
 # ADR-0019: 원장 반영 경로를 Kafka 에서 Redis Stream 으로 변경
-- 상태: **Accepted** (승인: 2026-11-26 KST, #30)
+- 상태: **Accepted** (승인: 2026-11-26 KST, #30) · 용어 갱신: 본문의 "monolith" 는 core-service 로 읽는다 (#35)
 - 날짜: 2026-11-25 KST
 - 대체: [ADR-0008](0008-kafka-async-ledger-sync.md) (Kafka 비동기 원장 반영)
 - 관련: ADR-0007 (Redis 판정), ADR-0018 (퀴즈 즉시 지급·Failback 지급 원칙), ADR-0004 (선택적 복구), ADR-0020 (DR 복제 — Kafka 제거의 다른 절반)

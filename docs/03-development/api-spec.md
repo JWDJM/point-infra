@@ -8,14 +8,14 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <access token>` �
 ## 인증 방식
 | 토큰 | 형태 | 수명 (기본) | 전달 · 저장 |
 |---|---|---|---|
-| access token | RS256 JWT (`iss=point-monolith`, `sub`=사용자 id) | 15분 (`JWT_ACCESS_TTL`) | 응답 본문 → 브라우저 메모리, 요청 헤더 `Authorization: Bearer` |
+| access token | RS256 JWT (`iss=point-core`, `sub`=사용자 id) | 15분 (`JWT_ACCESS_TTL`) | 응답 본문 → 브라우저 메모리, 요청 헤더 `Authorization: Bearer` |
 | refresh token | 256bit 랜덤 | 14일 (`JWT_REFRESH_TTL`) | HttpOnly 쿠키 `point_refresh` (`Path=/api/auth`, `SameSite=Strict`, Secure=`AUTH_COOKIE_SECURE`). DB 에는 SHA-256 해시만 |
 
 - refresh 는 **한 번 쓰면 폐기하고 새로 발급**(rotation) → 탈취된 토큰은 한 번만 유효. 로그아웃 시 폐기.
-- event-service 는 monolith 를 호출하지 않고 공개키(`JWT_PUBLIC_KEY`, 없으면 `JWT_JWK_SET_URI`)로 자체 검증 (hybrid-msa §4).
+- event-service 는 core-service 를 호출하지 않고 공개키(`JWT_PUBLIC_KEY`, 없으면 `JWT_JWK_SET_URI`)로 자체 검증 (hybrid-msa §4).
 - `refresh_token` 테이블은 CDC 복제 대상이 아니다 → DR 전환 후에는 다시 로그인 (access token 은 양쪽 같은 서명 키면 유효).
 
-## monolith
+## core-service
 
 | Method | Path | 설명 | 도메인 | 상태 |
 |---|---|---|---|---|
@@ -55,9 +55,9 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <access token>` �
 
 | 서비스 | Method | Path | 설명 |
 |---|---|---|---|
-| monolith | GET | `/api/system/info` | 응답 Pod·프로필·DR 모드, PostgreSQL(버전·접속 노드·`pg_is_in_recovery`·`dr_heartbeat` 경과), Redis Stream(consumer group `point-ledger` 의 pending 수·DLQ 길이) |
-| monolith | GET | `/api/system/whoami` | 응답 Pod 정보만 (부하 분산 확인용) |
-| monolith | GET | `/api/system/ledger?recent=` | 원장 집계(지갑 수·잔액 합·출처별 합계) + 전체 사용자 최근 활동 |
+| core-service | GET | `/api/system/info` | 응답 Pod·프로필·DR 모드, PostgreSQL(버전·접속 노드·`pg_is_in_recovery`·`dr_heartbeat` 경과), Redis Stream(consumer group `point-ledger` 의 pending 수·DLQ 길이) |
+| core-service | GET | `/api/system/whoami` | 응답 Pod 정보만 (부하 분산 확인용) |
+| core-service | GET | `/api/system/ledger?recent=` | 원장 집계(지갑 수·잔액 합·출처별 합계) + 전체 사용자 최근 활동 |
 | event-service | GET | `/api/events/system/info` | 응답 Pod, Redis(버전·role·PING), 보상 Stream(등록된 Stream 수·길이). DR 모드에서는 503 `EVENT_MAINTENANCE` |
 | event-service | GET | `/api/events/system/whoami` | 응답 Pod 정보만 |
 
@@ -92,5 +92,5 @@ Stream 항목의 필드. 스키마는 `point.reward.requested` 그대로 쓴다 
 | `reason` | `QUIZ_REWARD`, `ATTENDANCE_REWARD` → 둘 다 원장에 즉시 멱등 반영 (ADR-0018). 로그·대사 구분용 |
 | `idempotencyKey` | `{eventId}:{userId}` — 출석은 `eventId = attendance-{yyyyMMdd}` |
 | Stream | 퀴즈 `event:{id}:rewards`, 출석 `attendance:{yyyyMMdd}:rewards`. event-service Lua 가 판정과 같은 스크립트에서 `XADD` |
-| Consumer group | `point-ledger` (monolith). 반영 성공 시 `XACK` |
+| Consumer group | `point-ledger` (core-service). 반영 성공 시 `XACK` |
 - 소비 실패: PEL 에 남은 항목을 `XAUTOCLAIM` 으로 재시도, 전달 횟수 한도(예: 5) 초과 또는 비재시도 오류면 `reward:dlq` Stream 으로 이동

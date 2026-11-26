@@ -4,11 +4,11 @@
 
 | 저장소 | 엔진 | 용도 | DR 복제 |
 |---|---|---|---|
-| RDS for PostgreSQL | 16.x (Multi-AZ) | monolith 전 도메인 (Source of Truth) | ✅ 핵심 테이블만 |
+| RDS for PostgreSQL | 16.x (Multi-AZ) | core-service 전 도메인 (Source of Truth) | ✅ 핵심 테이블만 |
 | ElastiCache | Valkey 7.2, Primary + Replica, **Multi-AZ + 자동 장애 조치 필수** (Cluster mode 비활성) | 이벤트 대기열, 중복 방지, 카운터, **당첨·출석 보상 Stream (원장 반영 버퍼, ADR-0019)** | ❌ (DR 시 이벤트 닫음. 미반영 Stream 항목은 Failback 후 반영) |
 | S3 | - | 로그 아카이브, 백업 | 선택 (Cross-cloud 불필요) |
 
-## 2. 스키마 개요 (monolith)
+## 2. 스키마 개요 (core-service)
 
 | 스키마/테이블 | 설명 | DR 복제 |
 |---|---|---|
@@ -25,7 +25,7 @@
 | `cs.inquiry` *(계획, 미생성)* | 1:1 문의 | ❌ |
 | `asset.asset_snapshot` *(계획, 미생성)* | 자산 조회 캐시 | ❌ (재조회 가능) |
 
-> 실제 테이블은 point-backend `monolith/src/main/resources/db/migration` (Flyway) 기준. *(계획)* 표시는 아직 마이그레이션이 없다.
+> 실제 테이블은 point-backend `core-service/src/main/resources/db/migration` (Flyway) 기준. *(계획)* 표시는 아직 마이그레이션이 없다.
 
 **원칙:** "잃으면 돈/신뢰 문제가 생기는 데이터"만 실시간 복제한다. 재생성 가능한 데이터는 제외해 Lag과 비용을 줄인다.
 
@@ -33,10 +33,10 @@
 
 | 키 | 타입 | 내용 | Producer → Consumer | 보존 |
 |---|---|---|---|---|
-| `event:{id}:rewards` | Stream | 퀴즈 당첨 (당첨 건만) | event-service `claim_reward.lua` 가 판정과 같은 스크립트에서 `XADD` → monolith consumer group `point-ledger` | 7일 (`XTRIM MINID`) |
-| `attendance:{yyyyMMdd}:rewards` | Stream | 출석 보상 | 출석 스크립트가 `SETBIT` 와 같은 스크립트에서 `XADD` → monolith `point-ledger` | 7일 |
-| `reward:streams` | Set | 열린 퀴즈 Stream 이름 등록 (monolith 가 읽을 목록) | 이벤트 오픈 시 등록 | 이벤트 종료·보존 기간 후 정리 |
-| `reward:dlq` | Stream | 전달 횟수 초과(예: 5) 또는 비재시도 오류 건 | monolith → 운영자 재처리 | 처리 후 정리 |
+| `event:{id}:rewards` | Stream | 퀴즈 당첨 (당첨 건만) | event-service `claim_reward.lua` 가 판정과 같은 스크립트에서 `XADD` → core-service consumer group `point-ledger` | 7일 (`XTRIM MINID`) |
+| `attendance:{yyyyMMdd}:rewards` | Stream | 출석 보상 | 출석 스크립트가 `SETBIT` 와 같은 스크립트에서 `XADD` → core-service `point-ledger` | 7일 |
+| `reward:streams` | Set | 열린 퀴즈 Stream 이름 등록 (core-service 가 읽을 목록) | 이벤트 오픈 시 등록 | 이벤트 종료·보존 기간 후 정리 |
+| `reward:dlq` | Stream | 전달 횟수 초과(예: 5) 또는 비재시도 오류 건 | core-service → 운영자 재처리 | 처리 후 정리 |
 
 - 메시지 필드: `idempotencyKey`, `userId`, `eventId`, `amount`, `reason`, `occurredAt` (스키마 `point-backend/api/events/point.reward.requested.schema.json` 재사용)
 - 소비: `XREADGROUP` → 반영 성공 시 `XACK`. 반영이 멱등(`idempotency_key` UNIQUE)이라 at-least-once 로 충분하다.

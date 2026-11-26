@@ -16,7 +16,7 @@ infra/terraform/
 │   │   ├── karpenter/    # IAM, SQS(Interruption), Helm
 │   │   ├── rds/          # PostgreSQL 16, 파라미터 그룹(logical replication, force_ssl), KMS  ※ 현재 스캐폴딩은 ADR-0006 기준 DB 모듈 (#8 에서 교체)
 │   │   ├── elasticache/
-│   │   ├── ecr/          # monolith, event-service, web
+│   │   ├── ecr/          # core-service, event-service, web
 │   │   ├── waf/          # 리전 WAF + Gateway ALB 연결  ※ 현재 스캐폴딩: edge/
 │   │   └── argocd-bootstrap/  # ArgoCD + Application 등록 (LB Controller·External Secrets·KEDA·앱)  ※ 구현 예정
 │   ├── gcp/

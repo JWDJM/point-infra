@@ -6,7 +6,7 @@
 
 | 구분 | 평시 | 이벤트 시 | DR 시 |
 |---|---|---|---|
-| monolith 컴퓨팅 | On-Demand 고정 (소형 2대) | 동일 | GKE 소형 노드풀 |
+| core-service 컴퓨팅 | On-Demand 고정 (소형 2대) | 동일 | GKE 소형 노드풀 |
 | event 컴퓨팅 | 0~1 노드 | Karpenter Spot 확장 | **0 (배포 안 함)** |
 | DB | RDS PostgreSQL | 동일 | Cloud SQL (이미 존재) |
 | DR 상시 비용 | Cloud SQL + VPN (양측 터널) + Static IP | 동일 | + GKE |
@@ -44,7 +44,7 @@
 | KEDA Cron 사전 확장 | 이벤트 시간에만 확장 | 상시 대기 레플리카 제거 |
 | VPC Endpoint | ECR/S3 트래픽 | NAT 처리 비용 절감 |
 | NAT Gateway 1개 (학습 환경) | Public subnet 1곳 | NAT 고정비 절감 (가용성 트레이드오프 문서화) |
-| Graviton (ARM) | monolith 노드 | 동일 성능 대비 비용 절감 (멀티아키 이미지 필요) |
+| Graviton (ARM) | core-service 노드 | 동일 성능 대비 비용 절감 (멀티아키 이미지 필요) |
 | 학습 기간 destroy | aws-main 비작업 시간 | 실습 비용 최소화 |
 | Kafka(MSK) 제거 | 원장 반영 → Redis Stream (ADR-0019), DR 복제 → PostgreSQL 논리 복제 (ADR-0020) | MSK 브로커·MSK Connect 고정비 제거 |
 
@@ -54,7 +54,7 @@
 |---|---|
 | `project` | point-platform |
 | `env` | main / dr-standby / dr-compute |
-| `component` | monolith / event / data / network |
+| `component` | core-service / event / data / network |
 | `cost-center` | portfolio |
 
 ## 5. 측정 계획

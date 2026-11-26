@@ -31,13 +31,13 @@
  │ Cloud SQL (구독)   ●    │   ──▶    │ Cloud SQL (Primary 승격)    ●     │
  │ Static IP          ●    │          │ Static IP → GKE Gateway     ●     │
  │ Artifact Registry  ●    │          │ GKE + ArgoCD                ●     │
- │ Secret Manager     ●    │          │ monolith (2~3 replicas)     ●     │
+ │ Secret Manager     ●    │          │ core-service (2~3 replicas) ●     │
  │ GKE                ✕    │          │ event-service               ✕     │
  └─────────────────────────┘          └───────────────────────────────────┘
 ```
 
 ### 프론트엔드 (web 파드)
-- point-frontend CI가 web 이미지를 **ECR과 Artifact Registry에 동시 푸시** → DR 시 GKE 에 monolith 와 함께 같은 이미지로 배포.
+- point-frontend CI가 web 이미지를 **ECR과 Artifact Registry에 동시 푸시** → DR 시 GKE 에 core-service 와 함께 같은 이미지로 배포.
 - 경로 규칙(HTTPRoute)은 AWS·GCP 동일, GatewayClass 만 다르다 (AWS: `gateway.k8s.aws/alb`, GCP: `gke-l7-global-external-managed`).
 
 ## 4. RTO 예산 (30분 분해)
@@ -49,7 +49,7 @@
 | T2 | `gcp-dr-compute` Terraform apply (GKE + 노드풀) | 10~11분 | 17분 |
 | T3 | ArgoCD Helm 설치 + root App 동기화 | 3분 | 20분 |
 | T4 | 클러스터 내부 Job: RPO 근거 기록, Cloud SQL 승격 (구독 해제, 계정 전환, 시퀀스·지갑 잔액 보정) | 2분 | 22분 |
-| T5 | External Secrets 동기화, monolith Ready | 3분 | 25분 |
+| T5 | External Secrets 동기화, core-service Ready | 3분 | 25분 |
 | T6 | Route 53 전환 + DNS 전파 (TTL 60s) | 2분 | 27분 |
 | T7 | 스모크 테스트 (로그인, 잔액 조회) | 2분 | **29분** |
 

@@ -18,14 +18,14 @@
 
 ```bash
 make local-up           # docker compose up -d
-make run-monolith       # http://localhost:8080
+make run-core       # http://localhost:8080
 make run-event          # http://localhost:8081
 make local-down
 ```
 
 | 서비스 | 포트 |
 |---|---|
-| monolith | 8080 |
+| core-service | 8080 |
 | event-service | 8081 |
 | PostgreSQL | 5432 |
 | Redis | 6379 |
@@ -39,7 +39,7 @@ make local-down
 | 레포 | 내용 |
 |---|---|
 | point-infra | 인프라, GitOps, 문서 (이 레포) |
-| point-backend | monolith, event-service, OpenAPI |
+| point-backend | core-service, event-service, OpenAPI |
 | point-frontend | React + Vite + TypeScript SPA |
 
 ## 5. 코드 규칙
@@ -48,7 +48,7 @@ make local-down
 - 설정: 환경별 값은 `application-{profile}.yml` 이 아니라 **환경 변수 / K8s ConfigMap·Secret** 으로 주입 (12-Factor)
 - 프로필: `local`, `aws`, `gcp-dr` — 프로필 전용 설정 파일은 **`application-local.yml` 만** 있다 (데모 시드, local 전용 이벤트 API, 쿠키 Secure 끔, JWT 키 없으면 임시 키 생성). aws·gcp-dr 은 파일 없이 환경 변수만으로 설정한다
 - ⚠️ `application-local.yml` 의 고정값은 `${ENV}` 자리표시자를 이긴다 → local 프로필로 클러스터에 띄울 땐 속성을 직접 가리키는 환경 변수(예: `APP_AUTH_COOKIESECURE`)로 덮는다
-- 인증: access token RS256 JWT + refresh token(HttpOnly 쿠키, rotation) — [api-spec §인증 방식](api-spec.md#인증-방식). 운영 프로필에서는 `JWT_PRIVATE_KEY`(monolith, PKCS#8) 가 없으면 기동 실패. event-service 는 `JWT_PUBLIC_KEY` 또는 `JWT_JWK_SET_URI` 중 하나가 필요하며 (`JWT_PUBLIC_KEY` 우선), 둘 다 없으면 기동 실패
+- 인증: access token RS256 JWT + refresh token(HttpOnly 쿠키, rotation) — [api-spec §인증 방식](api-spec.md#인증-방식). 운영 프로필에서는 `JWT_PRIVATE_KEY`(core-service, PKCS#8) 가 없으면 기동 실패. event-service 는 `JWT_PUBLIC_KEY` 또는 `JWT_JWK_SET_URI` 중 하나가 필요하며 (`JWT_PUBLIC_KEY` 우선), 둘 다 없으면 기동 실패
 - 헬스체크: `/actuator/health/liveness`, `/actuator/health/readiness` 분리
 - Graceful Shutdown: `server.shutdown=graceful`, preStop sleep 10s (ALB 등록 해제 대기)
 
@@ -57,5 +57,5 @@ make local-down
 | 규칙 | 이유 |
 |---|---|
 | 클라우드 SDK 직접 호출 금지 (S3 등은 추상화 인터페이스 뒤로) | GCP에서도 같은 이미지가 동작해야 함 |
-| Redis 미연결 시에도 monolith 기동 가능 (gcp-dr 오버레이가 원장 Stream consumer·점검을 끈다 — 지금 플래그는 `KAFKA_ENABLED=false`, ADR-0019 전환 때 이름 교체) | DR 환경엔 Redis 없음 (선택적 복구, ADR-0004) |
+| Redis 미연결 시에도 core-service 기동 가능 (gcp-dr 오버레이가 원장 Stream consumer·점검을 끈다 — 지금 플래그는 `KAFKA_ENABLED=false`, ADR-0019 전환 때 이름 교체) | DR 환경엔 Redis 없음 (선택적 복구, ADR-0004) |
 | PK는 `IDENTITY` 대신 시퀀스 + 보정 가능 구조 또는 UUIDv7 검토 — 현재는 `IDENTITY` + Failover 시 `scripts/dr/fix-sequences.sql` 로 보정 | Failover 시 시퀀스 충돌 방지 |

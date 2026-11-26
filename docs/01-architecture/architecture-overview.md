@@ -19,12 +19,12 @@ Route 53 ── Failover Record (Primary: AWS ALB / Secondary: GCP Static IP)
    ├────────────────────────── AWS ap-northeast-2 (Main) ─────────────────────────────┐
    │  ALB + AWS WAF (Bot 차단, Rate Limit)  ← Gateway API (AWS Load Balancer Controller)│
    │      ├─ /api/events/**  → event-service  (Karpenter NodePool: spot)              │
-   │      ├─ /api/**         → monolith       (Managed NodeGroup: On-Demand)          │
+   │      ├─ /api/**         → core-service   (Managed NodeGroup: On-Demand)          │
    │      └─ /**             → web (SPA 정적, nginx)                                   │
    │                                                                                  │
    │  event-service ──Lua──▶ ElastiCache Valkey (대기열, 중복방지, 재고 카운터)           │
    │                           └─ 당첨 시 같은 Lua 에서 XADD → Redis Stream (*:rewards)  │
-   │                                └──▶ monolith(point 모듈) consumer group ──▶ RDS    │
+   │                            └──▶ core-service(point 모듈) consumer group ──▶ RDS    │
    │                                                                                  │
    │  RDS PostgreSQL (PUBLICATION dr_publication) ── 논리 복제 ─────────┐             │
    └──────────────────────────────────────────────────────────────────┼─────────────┘
@@ -36,7 +36,7 @@ Route 53 ── Failover Record (Primary: AWS ALB / Secondary: GCP Static IP)
    │   Artifact Registry (이미지 이중 푸시), Secret Manager, GCS(Terraform State)       │
    │ [장애 시 - gcp-dr-compute]                                                        │
    │   GKE (Standard, Spot 미사용) → Helm으로 ArgoCD 설치 → ApplicationSet(gcp-dr)      │
-   │   → monolith만 배포, /api/events/** 는 maintenance 응답                             │
+   │   → core-service만 배포, /api/events/** 는 maintenance 응답                         │
    └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -47,7 +47,7 @@ Route 53 ── Failover Record (Primary: AWS ALB / Secondary: GCP Static IP)
 | WAF (리전, ALB 연결) | 매크로/봇 차단, IP Rate Limit | 이벤트 1차 방어선. Terraform 이 Gateway ALB 에 연결 |
 | ALB | 경로 기반 라우팅, TLS 종료(도메인·ACM 후) | Gateway API(Gateway, HTTPRoute)로 관리 |
 | web | 프론트엔드 SPA 정적 서빙 (nginx, non-root) | DR 시 같은 이미지를 GKE 에 배포 |
-| monolith | user / asset / point / cs 도메인 | 모듈 간 의존은 인터페이스로만 (향후 분리 대비) |
+| core-service | user / asset / point / cs 도메인 | 모듈 간 의존은 인터페이스로만 (향후 분리 대비) |
 | event-service | 이벤트 참여, 대기열, 선착순 판정 | Stateless, Redis에 상태 위임 |
 | Redis | 대기열, 중복 참여 방지, 선착순 카운터, 당첨 결과 Stream (원장 반영 버퍼) | 판정과 `XADD` 를 Lua 한 번에 원자 처리. Multi-AZ 필수 (ADR-0019) |
 | RDS PostgreSQL | 원장(Source of Truth) | Multi-AZ, 논리 복제 활성화 |
@@ -60,7 +60,7 @@ Route 53 ── Failover Record (Primary: AWS ALB / Secondary: GCP Static IP)
 ## 4. 요청 흐름
 
 ### 4.1 평시 — 포인트 잔액 조회
-`Client → (WAF) ALB → monolith(point) → RDS → 응답` (화면은 `Client → ALB → web`)
+`Client → (WAF) ALB → core-service(point) → RDS → 응답` (화면은 `Client → ALB → web`)
 
 ### 4.2 이벤트 — 퀴즈 정답 포인트 지급
 1. `POST /api/events/{id}/answers` → event-service
@@ -68,12 +68,12 @@ Route 53 ── Failover Record (Primary: AWS ALB / Secondary: GCP Static IP)
 3. Redis `DECR event:{id}:stock` ≥ 0 이면 당첨 (Lua로 원자 처리)
 4. 당첨 시 같은 스크립트에서 `XADD event:{id}:rewards` (idempotencyKey=eventId:userId)
 5. 클라이언트에는 즉시 "지급 예정" 응답 (202 Accepted)
-6. monolith 가 consumer group `point-ledger` 로 Stream 을 읽어 멱등키 유니크 제약으로 원장에 반영 → `XACK` → 잔액 갱신 (퀴즈·출석 모두 즉시, ADR-0018)
+6. core-service 가 consumer group `point-ledger` 로 Stream 을 읽어 멱등키 유니크 제약으로 원장에 반영 → `XACK` → 잔액 갱신 (퀴즈·출석 모두 즉시, ADR-0018)
 
 ### 4.3 DR — AWS 리전 장애
 1. Route 53 Health Check 실패 감지 + 운영자 장애 선언
 2. GitHub Actions `dr-failover` 워크플로 수동 승인 → `gcp-dr-compute` Terraform apply
-3. GKE 생성 → Helm으로 ArgoCD 설치 → `gcp-dr` ApplicationSet 동기화 → monolith 배포
+3. GKE 생성 → Helm으로 ArgoCD 설치 → `gcp-dr` ApplicationSet 동기화 → core-service 배포
 4. Cloud SQL 구독 해제(slot 연결 끊고 DROP), 시퀀스 보정, 앱 계정 쓰기 허용
 5. Route 53 Secondary 레코드(GCP Static IP)로 트래픽 전환
    → 상세: [dr-runbook](../06-disaster-recovery/dr-runbook.md)

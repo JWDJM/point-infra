@@ -13,7 +13,7 @@
 | 프론트엔드 (point-frontend) | ✅ 핵심 화면 | 로그인/가입, 홈, 이벤트, 결제, 내역, 관리자. **이벤트 화면이 local 전용 API 를 호출** (§3.3) |
 | Terraform (AWS) | 🟡 | vpc, eks, DB 모듈(ADR-0006 기준 — RDS 로 교체 예정) 작성. karpenter·elasticache·ecr·edge 는 스텁, `argocd-bootstrap` 없음 |
 | Terraform (GCP) | 🟡 | argocd-bootstrap 작성. network·cloudsql·gke·vpn 스텁 |
-| K8s / GitOps | 🟡 | base(monolith, event-service, maintenance), overlays, argocd apps 일부. Gateway API(Gateway·HTTPRoute) 매니페스트 ✅, web·db-init·ExternalSecret 없음 |
+| K8s / GitOps | 🟡 | base(core-service, event-service, maintenance), overlays, argocd apps 일부. Gateway API(Gateway·HTTPRoute) 매니페스트 ✅, web·db-init·ExternalSecret 없음 |
 | CI/CD | 🟡 | backend·frontend `ci.yml`(테스트·빌드·Trivy), infra `terraform-plan.yml`(정적 검증). 이미지 push·태그 bump·apply·drift 는 TODO |
 | DR 복제 (`cdc/`) | ✅ 설정 SQL | 논리 복제 Publication(RDS)·Subscription(Cloud SQL) SQL (ADR-0020). 적용 자동화·sg-rds 규칙·RDS 파라미터(pg_cron, `max_slot_wal_keep_size`)는 없음 |
 | DR 자동화 | 🟡 | `dr-failover.yml` 단계 골격, SQL 2종(시퀀스·지갑) 작성. 셸 스크립트 5종은 TODO |
@@ -39,17 +39,17 @@
 ### 2.2 K8s / GitOps (`k8s/`)
 | 항목 | 설계 | 현재 | 근거 |
 |---|---|---|---|
-| 트래픽 진입 | Gateway + HTTPRoute (`/api/events` → event-service, `/api` → monolith, `/` → web) | 🟡 `overlays/{aws,gcp-dr}/gateway.yaml` ✅ (HTTP 80 리스너, AWS: `LoadBalancerConfiguration`·`TargetGroupConfiguration`, GCP: `HealthCheckPolicy`). **적용 전 필요**: Terraform sg-alb(`point-main-alb`)·LBC Pod Identity IAM(#8 영역), GKE Gateway API 활성화(gke 모듈 스텁), `/` → web 은 #15 전까지 backend 없음. HTTPS 443 은 도메인·ACM 후 | ADR-0014 |
+| 트래픽 진입 | Gateway + HTTPRoute (`/api/events` → event-service, `/api` → core-service, `/` → web) | 🟡 `overlays/{aws,gcp-dr}/gateway.yaml` ✅ (HTTP 80 리스너, AWS: `LoadBalancerConfiguration`·`TargetGroupConfiguration`, GCP: `HealthCheckPolicy`). **적용 전 필요**: Terraform sg-alb(`point-main-alb`)·LBC Pod Identity IAM(#8 영역), GKE Gateway API 활성화(gke 모듈 스텁), `/` → web 은 #15 전까지 backend 없음. HTTPS 443 은 도메인·ACM 후 | ADR-0014 |
 | 프론트 | `k8s/base/web` (nginx 파드) | ❌ 없음 | ADR-0015 |
 | DB 초기화 | `overlays/aws/db-init.yaml` (`app_rw` 생성 Sync Job) | ❌ 없음 | ADR-0013 |
-| 시크릿 | ExternalSecret `monolith-db` (+ event-service 공개키) | ❌ 매니페스트 없음 (`platform/external-secrets/README.md` 에 키 목록만) | ADR-0010 |
+| 시크릿 | ExternalSecret `core-service-db` (+ event-service 공개키) | ❌ 매니페스트 없음 (`platform/external-secrets/README.md` 에 키 목록만) | ADR-0010 |
 | event-service 시크릿 | `JWT_PUBLIC_KEY` 주입 | ❌ base deployment 에 `secretRef` 없음 → aws 프로필에서 **기동 실패** (공개키·JWKS URI 둘 다 없으면 예외) | — |
 | 앱 설정 | Redis 주소 등 | ❌ overlay ConfigMap 에 `REDIS_HOST` 없음 (기본값 localhost). `KAFKA_ENABLED` 는 backend 전환(ADR-0019) 때 이름 교체 | — |
 | 플랫폼 Application | LBC, ESO, KEDA, Karpenter, 모니터링 | 🟡 `argocd/aws/apps.yaml` 에 apps-aws·karpenter-nodepools·aws-load-balancer-controller(차트 3.6.3 + Gateway API CRD v1.6.0 + GatewayClass, `platform/gateway/aws`). ESO·KEDA·모니터링 TODO | ADR-0009, 0014 |
 | Sync Window | 이벤트 시간 배포 금지 | ✅ `argocd/aws/sync-window.yaml` | |
-| KEDA | Cron + CPU (event-service), Redis Stream pending (monolith) | 🟡 event-service ScaledObject ✅, monolith Stream 트리거 ❌ | ADR-0002, 0019 |
+| KEDA | Cron + CPU (event-service), Redis Stream pending (core-service) | 🟡 event-service ScaledObject ✅, core-service Stream 트리거 ❌ | ADR-0002, 0019 |
 | maintenance (DR) | `/api/events/**` 503 | ✅ `base/maintenance` (nginx, LB 헬스체크용 `/healthz` 200) | ADR-0004 |
-| PDB / probe / non-root | 모든 Deployment 필수 | ✅ monolith·event-service base | AGENTS.md |
+| PDB / probe / non-root | 모든 Deployment 필수 | ✅ core-service·event-service base | AGENTS.md |
 
 ### 2.3 CI/CD (`.github/workflows`, 각 레포)
 | 워크플로 | 상태 | 비고 |
@@ -120,7 +120,7 @@ point-infra 밖의 검증 환경에서 실제로 구축하며 확인한 것. 이
 | `app_rw` 권한 | Flyway 가 `app_rw` 로 스키마·테이블을 만든다 → `GRANT CONNECT, CREATE ON DATABASE` 와 함께 **PostgreSQL 15+ 는 `GRANT USAGE, CREATE ON SCHEMA public`** 도 필요 (없으면 `permission denied for schema public`) |
 | db-init Job SQL | K8s 는 `command`/`args` 의 `$$` 를 `$` 로 바꾼다 → `DO $$` 대신 `DO $do$ ... $do$` |
 | db-init 를 ArgoCD hook 으로 | PreSync Job 이 읽는 Secret 을 만드는 ExternalSecret 도 PreSync hook 이어야 한다 (일반 리소스는 hook 뒤에 생성 → 교착) |
-| event-service 인증 | `JWT_PUBLIC_KEY` 가 `JWT_JWK_SET_URI` 보다 우선. 공개키는 monolith 개인키(PKCS#8)와 같은 쌍 |
+| event-service 인증 | `JWT_PUBLIC_KEY` 가 `JWT_JWK_SET_URI` 보다 우선. 공개키는 core-service 개인키(PKCS#8)와 같은 쌍 |
 | local 프로필 오버라이드 | `application-local.yml` 의 고정값이 `${ENV}` 자리표시자를 이긴다 → 속성 직접 지정 환경변수(하이픈 제거 — 예: `app.auth.cookie-secure` → `APP_AUTH_COOKIESECURE`) 사용 |
 | Karpenter IAM | 컨트롤러 정책이 관리형 정책 한도(6,144자)를 넘음 → EKS 모듈 karpenter 서브모듈 `enable_inline_policy = true` |
 | 노드 SG | EKS 모듈 기본 노드 간 허용은 1025-65535 + 53 → 컨테이너 포트는 1025 이상 사용 |

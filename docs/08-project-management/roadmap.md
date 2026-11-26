@@ -7,7 +7,7 @@
 | Phase | 기간 | 목표 | 완료 조건 (Definition of Done) |
 |---|---|---|---|
 | 0. 설계 | 1주 | 아키텍처·ADR·CIDR 확정 | 본 docs 리뷰 완료, CIDR 변경 없음 선언 |
-| 1. 앱 MVP | 2주 | monolith + event-service 로컬 동작 | docker compose에서 S3/S4 시나리오 통과 |
+| 1. 앱 MVP | 2주 | core-service + event-service 로컬 동작 | docker compose에서 S3/S4 시나리오 통과 |
 | 2. AWS 기반 | 1.5주 | VPC, EKS, RDS, Redis Terraform | `terraform apply` 1회로 재현 |
 | 3. 플랫폼 | 1.5주 | ArgoCD, Karpenter, KEDA, ESO, 모니터링, CI/CD | main 머지 → 자동 배포, S2 부하 테스트 통과 |
 | 4. DR 기반 | 1.5주 | GCP standby, HA VPN, 논리 복제 | 복제 Lag 대시보드, p99 ≤ 5초 |
@@ -25,8 +25,8 @@
 ### Phase 1 — 애플리케이션
 > 현황 상세: [implementation-status](../00-overview/implementation-status.md)
 
-- [x] monolith: user(JWT + refresh token), point(원장·멱등·사용)
-- [ ] monolith: asset(Mock), cs, 포인트 환불·내역 페이지네이션
+- [x] core-service: user(JWT + refresh token), point(원장·멱등·사용)
+- [ ] core-service: asset(Mock), cs, 포인트 환불·내역 페이지네이션
 - [x] event-service: 출석(Bitmap), 퀴즈(Lua), Kafka 발행
 - [ ] event-service: 대기열(ZSET), 운영용 이벤트 생성·조회 API
 - [x] point consumer + DLQ

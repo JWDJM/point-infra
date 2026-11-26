@@ -23,7 +23,7 @@
 | `gha-ecr-push` | GitHub OIDC | ECR push |
 | `karpenter-controller` | Pod Identity | EC2 생성/삭제, SQS 인터럽트 큐 |
 | `external-secrets` | Pod Identity | 특정 경로 Secrets Manager 읽기 |
-| `monolith-app` | Pod Identity | S3 특정 prefix |
+| `core-service-app` | Pod Identity | S3 특정 prefix |
 
 ## 3. DB 계정 분리
 
