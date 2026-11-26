@@ -44,7 +44,7 @@ COMMIT;
 ```
 - 같은 사용자의 쓰기는 지갑 행 잠금으로 한 줄로 서므로, 사용자별 원장 `id` 순서 = 커밋 순서이고 `balance_after` 가 끊김 없이 이어진다 (§4 대사의 전제).
 - 멱등키: 이벤트 보상 `{eventId}:{userId}`, 포인트 사용 `use:{userId}:{Idempotency-Key 헤더}` (다른 사용자가 같은 키를 보내도 서로 묻히지 않게 사용자별로 범위 구분).
-- Stream 소비 실패 시 PEL 재시도(`XAUTOCLAIM`) → 한도 초과 시 `reward:dlq` Stream 으로 이동 → 운영자 재처리 (ADR-0019)
+- Stream 소비 실패 시 PEL 재시도(`XPENDING` + `XCLAIM`) → 한도 초과 시 `reward:dlq` Stream 으로 이동 → 운영자 재처리 (ADR-0019)
 - 위 흐름은 출석 보상·퀴즈 당첨 공통 (`reason` 은 구분용, ADR-0018)
 
 ### 3.1 퀴즈 당첨

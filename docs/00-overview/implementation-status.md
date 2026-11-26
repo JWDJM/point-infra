@@ -9,7 +9,7 @@
 
 | 영역 | 상태 | 요약 |
 |---|---|---|
-| 애플리케이션 (point-backend) | ✅ 핵심 경로 | 회원가입·로그인(JWT + refresh token), 잔액·내역·사용, 출석, 퀴즈(즉시 지급, ADR-0018), Kafka + DLQ(**ADR-0019 의 Redis Stream 으로 전환 필요**), 운영 API. asset·cs·대기열·환불은 없음 |
+| 애플리케이션 (point-backend) | ✅ 핵심 경로 | 회원가입·로그인(JWT + refresh token), 잔액·내역·사용, 출석, 퀴즈(즉시 지급, ADR-0018), 원장 반영 Redis Stream(Lua 판정 + `XADD`, consumer group·재시도·DLQ·7일 보존, ADR-0019), 운영 API. asset·cs·대기열·환불은 없음 |
 | 프론트엔드 (point-frontend) | ✅ 핵심 화면 | 로그인/가입, 홈, 이벤트, 결제, 내역, 관리자. **이벤트 화면이 local 전용 API 를 호출** (§3.3) |
 | Terraform (AWS) | 🟡 | vpc, eks, DB 모듈(ADR-0006 기준 — RDS 로 교체 예정) 작성. karpenter·elasticache·ecr·edge 는 스텁, `argocd-bootstrap` 없음 |
 | Terraform (GCP) | 🟡 | argocd-bootstrap 작성. network·cloudsql·gke·vpn 스텁 |
@@ -44,7 +44,7 @@
 | DB 초기화 | `overlays/aws/db-init.yaml` (`app_rw` 생성 Sync Job) | ❌ 없음 | ADR-0013 |
 | 시크릿 | ExternalSecret `core-service-db` (+ event-service 공개키) | ❌ 매니페스트 없음 (`platform/external-secrets/README.md` 에 키 목록만) | ADR-0010 |
 | event-service 시크릿 | `JWT_PUBLIC_KEY` 주입 | ❌ base deployment 에 `secretRef` 없음 → aws 프로필에서 **기동 실패** (공개키·JWKS URI 둘 다 없으면 예외) | — |
-| 앱 설정 | Redis 주소 등 | ❌ overlay ConfigMap 에 `REDIS_HOST` 없음 (기본값 localhost). `KAFKA_ENABLED` 는 backend 전환(ADR-0019) 때 이름 교체 | — |
+| 앱 설정 | Redis 주소 등 | ❌ overlay ConfigMap 에 `REDIS_HOST` 없음 (기본값 localhost) — core-service(원장 반영 Stream)·event-service 둘 다 필요, elasticache 모듈 스텁이라 엔드포인트 없음. `REWARD_STREAM_ENABLED` 는 ✅ (aws=true, gcp-dr=false) | ADR-0019 |
 | 플랫폼 Application | LBC, ESO, KEDA, Karpenter, 모니터링 | 🟡 `argocd/aws/apps.yaml` 에 apps-aws·karpenter-nodepools·aws-load-balancer-controller(차트 3.6.3 + Gateway API CRD v1.6.0 + GatewayClass, `platform/gateway/aws`). ESO·KEDA·모니터링 TODO | ADR-0009, 0014 |
 | Sync Window | 이벤트 시간 배포 금지 | ✅ `argocd/aws/sync-window.yaml` | |
 | KEDA | Cron + CPU (event-service), Redis Stream pending (core-service) | 🟡 event-service ScaledObject ✅, core-service Stream 트리거 ❌ | ADR-0002, 0019 |
@@ -90,7 +90,7 @@
 | 취소·환불·만료 | ❌ | `LedgerType` 에 `REFUND, EXPIRE, CANCEL` 정의만, `refund_request` 테이블만 존재 |
 | 퀴즈 즉시 지급 (ADR-0018, ADR-0017 철회) | ✅ | consumer 테스트 (퀴즈·출석 즉시 반영, 키 길이 검증) |
 | 대사 배치 (일 1회) | ❌ | 출석 비트맵↔원장, 지갑↔원장 합계, RDS↔Cloud SQL — [domain-model §4](../03-development/domain-model.md). DR 전환용 `reconcile-wallet.sql` 만 있음 |
-| Redis 키 (ADR-0007) | 🟡 | 실제 키: `event:{id}:stock`·`participants`·`winners`·`amount` (`{id}` 는 클러스터 해시태그), `attendance:{yyyyMMdd}` Bitmap(TTL 2일). **`event:{id}:queue` 없음, 이벤트 키 TTL 미설정** |
+| Redis 키 (ADR-0007) | 🟡 | 실제 키: `event:{id}:stock`·`participants`·`winners`·`amount` (`{id}` 는 클러스터 해시태그), `attendance:{yyyyMMdd}` Bitmap(TTL 2일, `{날짜}` 해시태그), 보상 Stream `event:{id}:rewards`·`attendance:{yyyyMMdd}:rewards`, 등록 Set `reward:streams`, DLQ `reward:dlq` (ADR-0019). `reward:streams` 의 종료된 이벤트 정리는 없음. **`event:{id}:queue` 없음, 이벤트 키 TTL 미설정** |
 
 ### 3.3 인증·세션
 | 항목 | 상태 | 비고 |

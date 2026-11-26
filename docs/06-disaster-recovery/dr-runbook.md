@@ -56,7 +56,7 @@
 
 | # | 단계 | 비고 |
 |---|---|---|
-| 1 | AWS 정상화 확인, `aws-main` plan 무변경 확인 | ⚠️ AWS 가 살아나도 **AWS core-service 는 0 으로 축소(또는 원장 consumer 비활성 — 지금 플래그 `KAFKA_ENABLED=false`)한 채 유지** — DR 기간 쓰기가 없는 RDS 에 consumer 가 먼저 지급하면 동기화와 충돌한다 (ADR-0018). RDS 에 남은 slot `dr_subscription` 을 지운다 (그대로 두면 WAL 이 계속 쌓인다, ADR-0020) |
+| 1 | AWS 정상화 확인, `aws-main` plan 무변경 확인 | ⚠️ AWS 가 살아나도 **AWS core-service 는 0 으로 축소(또는 원장 consumer 비활성 — `REWARD_STREAM_ENABLED=false`)한 채 유지** — DR 기간 쓰기가 없는 RDS 에 consumer 가 먼저 지급하면 동기화와 충돌한다 (ADR-0018). RDS 에 남은 slot `dr_subscription` 을 지운다 (그대로 두면 WAL 이 계속 쌓인다, ADR-0020) |
 | 2 | RDS를 Cloud SQL 최신 상태로 동기화 | 방법 A: 역방향 논리 복제 (Cloud SQL PUBLICATION → RDS SUBSCRIPTION) / 방법 B: 점검 중 덤프·복원. ⚠️ RDS 에만 커밋된 행(복제 지연분)이 있으면 방법 A 는 고유키 충돌로 apply 가 멈춘다 → 구독 전에 미복제 행을 따로 빼 둔다 (원장은 `idempotency_key` 기준). 다시 지급하는 건 6-1 되감기로 처리 (ADR-0020) |
 | 3 | 점검 시작 — GCP 쓰기 중단 (maintenance 모드) | 쓰기 동결 |
 | 4 | 최종 동기화 + 행 수/체크섬 검증 | |

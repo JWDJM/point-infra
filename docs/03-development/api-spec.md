@@ -58,7 +58,7 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <access token>` �
 | core-service | GET | `/api/system/info` | 응답 Pod·프로필·DR 모드, PostgreSQL(버전·접속 노드·`pg_is_in_recovery`·`dr_heartbeat` 경과), Redis Stream(consumer group `point-ledger` 의 pending 수·DLQ 길이) |
 | core-service | GET | `/api/system/whoami` | 응답 Pod 정보만 (부하 분산 확인용) |
 | core-service | GET | `/api/system/ledger?recent=` | 원장 집계(지갑 수·잔액 합·출처별 합계) + 전체 사용자 최근 활동 |
-| event-service | GET | `/api/events/system/info` | 응답 Pod, Redis(버전·role·PING), 보상 Stream(등록된 Stream 수·길이). DR 모드에서는 503 `EVENT_MAINTENANCE` |
+| event-service | GET | `/api/events/system/info` | 응답 Pod, Redis(버전·role·PING·등록된 보상 Stream 수 `rewardStreams`). DR 모드에서는 503 `EVENT_MAINTENANCE` |
 | event-service | GET | `/api/events/system/whoami` | 응답 Pod 정보만 |
 
 ## 관리자 (admin)
@@ -93,4 +93,4 @@ Stream 항목의 필드. 스키마는 `point.reward.requested` 그대로 쓴다 
 | `idempotencyKey` | `{eventId}:{userId}` — 출석은 `eventId = attendance-{yyyyMMdd}` |
 | Stream | 퀴즈 `event:{id}:rewards`, 출석 `attendance:{yyyyMMdd}:rewards`. event-service Lua 가 판정과 같은 스크립트에서 `XADD` |
 | Consumer group | `point-ledger` (core-service). 반영 성공 시 `XACK` |
-- 소비 실패: PEL 에 남은 항목을 `XAUTOCLAIM` 으로 재시도, 전달 횟수 한도(예: 5) 초과 또는 비재시도 오류면 `reward:dlq` Stream 으로 이동
+- 소비 실패: PEL 에 남은 항목을 min-idle 후 `XPENDING` + `XCLAIM` 으로 재시도, 전달 횟수 한도(예: 5) 초과 또는 비재시도 오류면 `reward:dlq` Stream 으로 이동

@@ -30,7 +30,7 @@
 - [x] event-service: 출석(Bitmap), 퀴즈(Lua), Kafka 발행
 - [ ] event-service: 대기열(ZSET), 운영용 이벤트 생성·조회 API
 - [x] point consumer + DLQ
-- [ ] 원장 반영 Kafka → Redis Stream 전환: Lua `XADD`, Stream consumer(PEL·DLQ·보존), Kafka 의존성 제거 (ADR-0019, point-backend)
+- [x] 원장 반영 Kafka → Redis Stream 전환: Lua `XADD`, Stream consumer(PEL·DLQ·보존), Kafka 의존성 제거 (ADR-0019, point-backend)
 - [x] ~~퀴즈 일괄 정산 (ADR-0017)~~ → 즉시 지급으로 복귀 (ADR-0018)
 - [ ] 퀴즈 대사 배치 (Redis 당첨자 ↔ 원장), Stream pending 알람 (ADR-0018 후속)
 - [x] Flyway 스키마, Testcontainers 통합 테스트, ArchUnit
