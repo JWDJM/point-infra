@@ -10,7 +10,7 @@
 | 영역 | 상태 | 요약 |
 |---|---|---|
 | 애플리케이션 (point-backend) | ✅ 핵심 경로 | 회원가입·로그인(JWT + refresh token), 잔액·내역·사용, 출석, 퀴즈(즉시 지급, ADR-0018), 원장 반영 Redis Stream(Lua 판정 + `XADD`, consumer group·재시도·DLQ·7일 보존, ADR-0019), 운영 API. asset·cs·대기열·환불은 없음 |
-| 프론트엔드 (point-frontend) | ✅ 핵심 화면 | 로그인/가입, 홈, 이벤트, 결제, 내역, 관리자. **이벤트 화면의 열기 버튼이 local 전용 API 를 호출** (§3.3) |
+| 프론트엔드 (point-frontend) | ✅ 핵심 화면 | 로그인/가입, 홈, 이벤트, 결제, 내역, 관리자(이벤트 현황은 조회 전용) |
 | Terraform (AWS) | 🟡 | vpc, eks, DB 모듈(ADR-0006 기준 — RDS 로 교체 예정) 작성. karpenter·elasticache·ecr·edge 는 스텁, `argocd-bootstrap` 없음 |
 | Terraform (GCP) | 🟡 | argocd-bootstrap 작성. network·cloudsql·gke·vpn 스텁 |
 | K8s / GitOps | 🟡 | base(core-service, event-service, maintenance), overlays, argocd apps 일부. Gateway API(Gateway·HTTPRoute) 매니페스트 ✅, web·db-init·ExternalSecret 없음 |
@@ -100,7 +100,7 @@
 | 프론트 연동 | ✅ | 401 → refresh 1회 재시도(동시 호출 합침), 새로고침 시 복원 |
 | 재사용 탐지 (token family 폐기) | ❌ | 폐기된 refresh 토큰 재사용 시 401 만 |
 | 서명 키 교체 (`kid`, 다중 키 JWKS) | ❌ | 키 1개 |
-| **프론트 이벤트 화면** | ⚠️ | `GET /api/events/{id}/status` 는 모든 프로필에서 동작. `POST .../open` 은 `local` 전용이라 **aws 배포 시 열기 버튼만 404** (point-frontend#4) |
+| 프론트 이벤트 화면 | ✅ | `GET /api/events/{id}/status` 만 호출 (모든 프로필). 관리자 패널은 조회 전용 — 이벤트 생성은 event-day 런북의 관리자 API (point-frontend#4) |
 
 ## 4. 테스트
 | 레벨 | 상태 | 비고 |
