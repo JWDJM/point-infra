@@ -43,11 +43,16 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <access token>` �
 | POST | `/api/events/{eventId}/queue` | 대기열 진입 | 200 `{ position }` | ❌ |
 | GET | `/api/events/{eventId}/queue/me` | 내 순번 | 200 `{ position, admitted }` | ❌ |
 | POST | `/api/events/{eventId}/answers` | 퀴즈 정답 제출 | 202 당첨(지급 예정 — Redis Stream 경유 원장 반영, 보통 1초 안쪽) / 200 낙첨(재고 소진) / 409 중복 / 410 이벤트 없음·마감 | ✅ |
-| POST | `/api/events/{eventId}/open?stock=&amount=` | 이벤트 열기·초기화 (인증 없음) | 200 상태 | 🧪 |
-| GET | `/api/events/{eventId}/status` | 재고·참여자·당첨자 수 (인증 없음) | 200 | 🧪 |
+| POST | `/api/events/admin/{eventId}` | 운영용 이벤트 생성 `{stock, amount, endsAt}` (`X-Admin-Token`) | 201 상태 / 403 토큰 / 409 이미 쓴 id | ✅ |
+| GET | `/api/events/{eventId}/status` | 재고·참여자·당첨자 수·마감 시각 `endsAt` (인증 없음) | 200 | ✅ |
+| POST | `/api/events/{eventId}/open?stock=&amount=` | 이벤트 열기·초기화 (인증 없음, 마감 없음) | 200 상태 | 🧪 |
 
-- 🧪 두 API 는 `@Profile("local")` 이라 **aws·gcp-dr 프로필에는 없다.** 운영에서 이벤트를 만들고(재고·금액 설정) 당첨자 수를 조회하는 경로는 아직 없다 → [event-day 런북](../05-operations/runbooks/event-day.md) D-1 단계(이벤트 생성)와 종료 후 대사(당첨자 수)가 이것에 의존한다.
-- 프론트 이벤트 화면이 현재 이 두 API 를 호출한다 (point-frontend `features/event`).
+- 생성 API 는 [event-day 런북](../05-operations/runbooks/event-day.md) D-1 에서 curl 로 호출한다. 프론트에서는 부르지 않는다 (브라우저에 관리자 토큰을 두지 않음). 경로가 `/api/events` 아래인 이유: Gateway 가 `/api/events/**` 만 event-service 로 보낸다
+  - 토큰: event-service `ADMIN_API_TOKEN` (비어 있으면 항상 403)
+  - 한 번 쓴 `eventId` 는 다시 쓸 수 없다 (409) — 같은 id 를 다시 열면 멱등키(`eventId:userId`)가 겹쳐 새 당첨이 원장에서 무시된다
+  - `endsAt` 이 지나면 참여 마감(answers → 410). 이벤트 키는 `endsAt` + 1일에 만료 (ADR-0007), 보상 Stream 은 만료되지 않는다 (ADR-0019, 7일 보존)
+- 🧪 `open` 은 `@Profile("local")` 이라 aws·gcp-dr 프로필에는 없다 (데모·테스트용 초기화)
+- 프론트 이벤트 화면은 아직 `open` 도 호출한다 → aws 배포 시 그 버튼만 404 (point-frontend#4)
 
 ## 운영·인프라 검증 (ops)
 

@@ -10,7 +10,7 @@
 | 영역 | 상태 | 요약 |
 |---|---|---|
 | 애플리케이션 (point-backend) | ✅ 핵심 경로 | 회원가입·로그인(JWT + refresh token), 잔액·내역·사용, 출석, 퀴즈(즉시 지급, ADR-0018), 원장 반영 Redis Stream(Lua 판정 + `XADD`, consumer group·재시도·DLQ·7일 보존, ADR-0019), 운영 API. asset·cs·대기열·환불은 없음 |
-| 프론트엔드 (point-frontend) | ✅ 핵심 화면 | 로그인/가입, 홈, 이벤트, 결제, 내역, 관리자. **이벤트 화면이 local 전용 API 를 호출** (§3.3) |
+| 프론트엔드 (point-frontend) | ✅ 핵심 화면 | 로그인/가입, 홈, 이벤트, 결제, 내역, 관리자. **이벤트 화면의 열기 버튼이 local 전용 API 를 호출** (§3.3) |
 | Terraform (AWS) | 🟡 | vpc, eks, DB 모듈(ADR-0006 기준 — RDS 로 교체 예정) 작성. karpenter·elasticache·ecr·edge 는 스텁, `argocd-bootstrap` 없음 |
 | Terraform (GCP) | 🟡 | argocd-bootstrap 작성. network·cloudsql·gke·vpn 스텁 |
 | K8s / GitOps | 🟡 | base(core-service, event-service, maintenance), overlays, argocd apps 일부. Gateway API(Gateway·HTTPRoute) 매니페스트 ✅, web·db-init·ExternalSecret 없음 |
@@ -77,7 +77,7 @@
 | 포인트 | `balance`, `history`(최근 20건), `use`(Idempotency-Key) | `history?cursor=` 페이지네이션, `POST /api/points/refunds` |
 | asset / cs | — | `GET /api/assets`, `GET /api/cs/notices` (프론트 폴더도 비어 있음) |
 | 이벤트 | `attendance`, `{id}/answers` | `GET /api/events/active`, 대기열 `{id}/queue`, `{id}/queue/me` |
-| 이벤트 운영 | `{id}/open`, `{id}/status` — **`local` 프로필 전용** | 운영(aws) 프로필에서 이벤트를 만드는 API·Job (event-day 런북 D-1) |
+| 이벤트 운영 | 생성 `POST /api/events/admin/{id}`(`X-Admin-Token`), 현황 `{id}/status`, local 전용 `{id}/open` | 시작 시각 예약 생성 Job, 관리자 역할(JWT role) |
 | 운영·헬스 | `/api/system/{info,whoami,ledger}`, `/api/events/system/{info,whoami}`, `/api/health`, actuator | |
 
 ### 3.2 데이터·도메인
@@ -90,7 +90,7 @@
 | 취소·환불·만료 | ❌ | `LedgerType` 에 `REFUND, EXPIRE, CANCEL` 정의만, `refund_request` 테이블만 존재 |
 | 퀴즈 즉시 지급 (ADR-0018, ADR-0017 철회) | ✅ | consumer 테스트 (퀴즈·출석 즉시 반영, 키 길이 검증) |
 | 대사 배치 (일 1회) | ❌ | 출석 비트맵↔원장, 지갑↔원장 합계, RDS↔Cloud SQL — [domain-model §4](../03-development/domain-model.md). DR 전환용 `reconcile-wallet.sql` 만 있음 |
-| Redis 키 (ADR-0007) | 🟡 | 실제 키: `event:{id}:stock`·`participants`·`winners`·`amount` (`{id}` 는 클러스터 해시태그), `attendance:{yyyyMMdd}` Bitmap(TTL 2일, `{날짜}` 해시태그), 보상 Stream `event:{id}:rewards`·`attendance:{yyyyMMdd}:rewards`, 등록 Set `reward:streams`, DLQ `reward:dlq` (ADR-0019). `reward:streams` 의 종료된 이벤트 정리는 없음. **`event:{id}:queue` 없음, 이벤트 키 TTL 미설정** |
+| Redis 키 (ADR-0007) | 🟡 | 실제 키: `event:{id}:stock`·`participants`·`winners`·`amount` (`{id}` 는 클러스터 해시태그), `attendance:{yyyyMMdd}` Bitmap(TTL 2일, `{날짜}` 해시태그), 보상 Stream `event:{id}:rewards`·`attendance:{yyyyMMdd}:rewards`, 등록 Set `reward:streams`, DLQ `reward:dlq` (ADR-0019). `reward:streams` 의 종료된 이벤트 정리는 없음. 이벤트 키 TTL = 마감(`event:{id}:ends`) + 1일 (운영 생성 API 만 설정, 보상 Stream 제외). **`event:{id}:queue` 없음** |
 
 ### 3.3 인증·세션
 | 항목 | 상태 | 비고 |
@@ -100,7 +100,7 @@
 | 프론트 연동 | ✅ | 401 → refresh 1회 재시도(동시 호출 합침), 새로고침 시 복원 |
 | 재사용 탐지 (token family 폐기) | ❌ | 폐기된 refresh 토큰 재사용 시 401 만 |
 | 서명 키 교체 (`kid`, 다중 키 JWKS) | ❌ | 키 1개 |
-| **프론트 이벤트 화면** | ⚠️ | `GET /api/events/{id}/status`, `POST .../open` 을 호출 — 둘 다 `local` 프로필 전용이라 **aws 프로필 배포 시 404** |
+| **프론트 이벤트 화면** | ⚠️ | `GET /api/events/{id}/status` 는 모든 프로필에서 동작. `POST .../open` 은 `local` 전용이라 **aws 배포 시 열기 버튼만 404** (point-frontend#4) |
 
 ## 4. 테스트
 | 레벨 | 상태 | 비고 |
