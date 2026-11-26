@@ -11,7 +11,7 @@
 
 ## T-10분
 - [ ] Grafana Business / Scaling 대시보드 열기
-- [ ] DLQ = 0, consumer lag ≈ 0 확인
+- [ ] DLQ(`reward:dlq`) = 0, 보상 Stream pending ≈ 0 확인
 
 ## T-5분 (자동)
 - [ ] KEDA가 event-service 목표 레플리카로 확장했는지 확인
@@ -22,11 +22,11 @@
 |---|---|---|
 | event p95 | < 500ms | 초과 시 HPA 상한/노드 확인 |
 | 5xx | < 0.1% | 급증 시 incident-response |
-| Kafka consumer lag | 감소 추세 | 증가만 하면 point consumer 확장 |
+| 보상 Stream pending | 감소 추세 | 증가만 하면 point consumer 확장 |
 | Redis CPU | < 70% | 초과 시 읽기 경로 점검 |
 
 ## 종료 후
-- [ ] consumer lag = 0 확인 (퀴즈 당첨은 즉시 지급 — ADR-0018, 별도 정산 없음)
+- [ ] 보상 Stream pending = 0 확인 (퀴즈 당첨은 즉시 지급 — ADR-0018, 별도 정산 없음)
 - [ ] 대사 배치 실행 (퀴즈: Redis 당첨자 Set ↔ ledger, 출석: Redis 비트맵 ↔ ledger) — *배치 미구현* ([domain-model §4](../../03-development/domain-model.md))
 - [ ] DLQ 처리
 - [ ] 스케일 인/노드 회수 확인

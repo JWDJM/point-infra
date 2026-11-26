@@ -30,9 +30,9 @@
   │   ├─ /api/**         → Monolith (user/asset/point/cs)  On-Demand │   │        Static IP, Secret Manager,          │
   │   ├─ /api/events/**  → event-service (MSA)       Karpenter Spot  │   │        Artifact Registry                    │
   │   └─ /**             → web (SPA)                                 │   │ [장애 시 생성] GKE + ArgoCD               │
-  │                         │ Redis(대기열/중복방지)                    │   │        → Monolith + web 배포               │
-  │                         └─ Kafka(MSK) ──▶ Monolith point 모듈     │   │        → /api/events/** = 점검 페이지       │
-  │ RDS PostgreSQL ──(Debezium CDC / MSK Connect)──── HA VPN ────────┼──▶│                                            │
+  │                         │ Redis(대기열/중복방지/판정)              │   │        → Monolith + web 배포               │
+  │                         └─ Redis Stream ──▶ Monolith point 모듈   │   │        → /api/events/** = 점검 페이지       │
+  │ RDS PostgreSQL ──(PostgreSQL 논리 복제)────────── HA VPN ────────┼──▶│                                            │
   └──────────────────────────────────────────────────────────────────┘   └────────────────────────────────────────────┘
 ```
 
@@ -48,7 +48,7 @@
 | 아키텍처 | [architecture-overview](docs/01-architecture/architecture-overview.md) | 전체 구조, 컴포넌트 책임 |
 | | [hybrid-msa](docs/01-architecture/hybrid-msa.md) | 모놀리스/MSA 경계, 이벤트 흐름 |
 | | [network-design](docs/01-architecture/network-design.md) | CIDR, 서브넷, VPN, 보안그룹 |
-| | [data-architecture](docs/01-architecture/data-architecture.md) | DB, 캐시, Kafka 토픽, CDC 대상 |
+| | [data-architecture](docs/01-architecture/data-architecture.md) | DB, 캐시, 원장 반영 Redis Stream, DR 복제 대상 |
 | 의사결정 | [ADR 목록](docs/02-adr/README.md) | 기술 선택 이유 (Why / Why not) |
 | 개발 | [development-guide](docs/03-development/development-guide.md) | 로컬 환경, 브랜치/커밋 규칙 |
 | | [api-spec](docs/03-development/api-spec.md) | API 초안 |
@@ -91,7 +91,7 @@ point-infra/
 │   ├── modules/{aws,gcp,shared}/
 │   └── envs/{aws-main, gcp-dr-standby, gcp-dr-compute}/
 ├── k8s/{base, overlays/{aws,gcp-dr}, platform, argocd}/
-├── cdc/                     # Debezium Source / JDBC Sink
+├── cdc/                     # DR 논리 복제 SQL (RDS Publication / Cloud SQL Subscription)
 ├── load-test/k6/
 ├── scripts/                 # dr/, setup-github.sh, sync-ai-rules.sh
 └── .github/                 # 워크플로, PR·이슈 템플릿, CODEOWNERS, labels
@@ -114,6 +114,6 @@ point-infra/
 - [ ] Phase 1 — 애플리케이션 MVP (로컬) — 핵심 경로 완료, asset·cs·대기열·환불 남음
 - [ ] Phase 2 — AWS Main 인프라 (Terraform) — vpc·eks 작성, DB 모듈은 RDS for PostgreSQL 16(ADR-0013)으로 교체 예정(#8), 나머지 모듈 스텁
 - [ ] Phase 3 — EKS + GitOps + 오토스케일링
-- [ ] Phase 4 — CDC 복제 + GCP Standby
+- [ ] Phase 4 — DR 복제(논리 복제) + GCP Standby
 - [ ] Phase 5 — DR Failover 자동화 + 훈련
 - [ ] Phase 6 — 부하 테스트, 비용 분석, 회고

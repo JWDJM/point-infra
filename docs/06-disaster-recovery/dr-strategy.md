@@ -13,10 +13,10 @@
 | 재해 | 범위 | 대응 | DR 가동 |
 |---|---|---|---|
 | 단일 파드/노드 장애 | 서비스 일부 | K8s 자가 복구 | ❌ |
-| 단일 AZ 장애 | AZ | Multi-AZ (EKS 노드, RDS, Redis, MSK) | ❌ |
+| 단일 AZ 장애 | AZ | Multi-AZ (EKS 노드, RDS, Redis — 원장 반영 Stream 이 있어 자동 장애 조치 필수, ADR-0019) | ❌ |
 | RDS Primary 장애 | DB | RDS Multi-AZ 자동 Failover (Standby 승격) | ❌ |
 | **리전 장애 / AWS 사업자 장애** | 전체 | **GCP Pilot Light 가동** | ✅ |
-| 데이터 논리 오류 (잘못된 DELETE) | 데이터 | RDS PITR (CDC로 오류도 복제되므로 DR은 해답 아님) | ❌ |
+| 데이터 논리 오류 (잘못된 DELETE) | 데이터 | RDS PITR (논리 복제로 오류도 복제되므로 DR은 해답 아님) | ❌ |
 | 랜섬웨어 / 계정 탈취 | 계정 | 별도 계정 백업, 불변 백업 (확장 과제) | 상황별 |
 
 > 마지막 두 행이 중요: **복제는 백업이 아니다.** 논리 오류는 그대로 DR로 복제된다.
@@ -28,7 +28,7 @@
  ┌─ GCP ───────────────────┐          ┌─ GCP ─────────────────────────────┐
  │ VPC / Subnet       ●    │          │ VPC / Subnet                ●     │
  │ HA VPN             ●    │          │ HA VPN (AWS 측 Down)        ○     │
- │ Cloud SQL (sink)   ●    │   ──▶    │ Cloud SQL (Primary 승격)    ●     │
+ │ Cloud SQL (구독)   ●    │   ──▶    │ Cloud SQL (Primary 승격)    ●     │
  │ Static IP          ●    │          │ Static IP → GKE Gateway     ●     │
  │ Artifact Registry  ●    │          │ GKE + ArgoCD                ●     │
  │ Secret Manager     ●    │          │ monolith (2~3 replicas)     ●     │
@@ -48,7 +48,7 @@
 | T1 | Cloud SQL 준비 (gcloud API — 드릴이면 클론) | 1분 | 6분 |
 | T2 | `gcp-dr-compute` Terraform apply (GKE + 노드풀) | 10~11분 | 17분 |
 | T3 | ArgoCD Helm 설치 + root App 동기화 | 3분 | 20분 |
-| T4 | 클러스터 내부 Job: RPO 근거 기록, Cloud SQL 승격 (sink 차단, 계정 전환, 시퀀스·지갑 잔액 보정) | 2분 | 22분 |
+| T4 | 클러스터 내부 Job: RPO 근거 기록, Cloud SQL 승격 (구독 해제, 계정 전환, 시퀀스·지갑 잔액 보정) | 2분 | 22분 |
 | T5 | External Secrets 동기화, monolith Ready | 3분 | 25분 |
 | T6 | Route 53 전환 + DNS 전파 (TTL 60s) | 2분 | 27분 |
 | T7 | 스모크 테스트 (로그인, 잔액 조회) | 2분 | **29분** |
@@ -67,12 +67,12 @@
 |---|---|
 | 장애 시점 미복제 데이터 (≤ RPO) | Failback 시 RDS WAL/로그와 비교해 누락분 식별·보정 |
 | 시퀀스 | `scripts/dr/fix-sequences.sql` 로 `max(id) + 100000` 보정 |
-| 원장 ↔ 지갑 잔액 불일치 (테이블별 토픽 병렬 반영 → 트랜잭션 원자성 없음) | `scripts/dr/reconcile-wallet.sql` 로 지갑을 사용자별 마지막 `balance_after` 에 맞춤, 불일치 내역은 Failback 대사 자료로 보관 |
-| Kafka에 있었으나 미반영된 reward (퀴즈·출석) | DR 중에는 처리 불가 → Failback 후 consumer 재개로 자동 반영 (멱등) |
-| 퀴즈 이벤트 지급 (ADR-0018 즉시 지급) | 피크 중 재해면 **일부 당첨자만 지급된 상태**로 DR 운영 (판정 기준 없음). DB 에 반영된 지급은 유지, 미반영분만 Failback 후 MSK 잔여 메시지로 지급 (멱등). RDS 에만 커밋된 원장(CDC 지연분)은 **오프셋 되감기**로 다시 채운다 ([runbook §5](dr-runbook.md#5-failback-절차-계획된-점검) 6-1). 토픽 보존(7일)을 넘긴 DR·AWS 영구 소실이면 미지급 명단 복원 불가 → 재진행/일괄 보상 (비즈니스 결정) |
-| Redis 당첨 기록 | 소실 가능 → Failback 후 Kafka 토픽 기준 대사 |
+| 원장 ↔ 지갑 잔액 불일치 | 논리 복제는 트랜잭션 단위로 적용하므로 정상이면 생기지 않는다. 안전장치로 `scripts/dr/reconcile-wallet.sql` 을 유지해 지갑을 사용자별 마지막 `balance_after` 에 맞추고, 불일치 내역은 Failback 대사 자료로 보관 (ADR-0020) |
+| AWS Redis Stream 에 있었으나 미반영된 reward (퀴즈·출석) | Stream 은 GCP 로 복제되지 않는다 → DR 중에는 처리 불가, Failback 후 consumer 재개로 자동 반영 (멱등, ADR-0019) |
+| 퀴즈 이벤트 지급 (ADR-0018 즉시 지급) | 피크 중 재해면 **일부 당첨자만 지급된 상태**로 DR 운영 (판정 기준 없음). DB 에 반영된 지급은 유지, 미반영분만 Failback 후 Stream 잔여 항목으로 지급 (멱등). RDS 에만 커밋된 원장(복제 지연분)은 **consumer group 위치 되감기**(`XGROUP SETID`)로 다시 채운다 ([runbook §5](dr-runbook.md#5-failback-절차-계획된-점검) 6-1). Stream 보존(7일)을 넘긴 DR·ElastiCache 소실·AWS 영구 소실이면 미지급 명단 복원 불가 → 재진행/일괄 보상 (비즈니스 결정) |
+| Redis 당첨 기록·Stream | 당첨자 Set 과 Stream 이 같은 ElastiCache 에 있다 → Redis 가 살아 있으면 Failback 후 Set ↔ 원장 대사. ElastiCache 까지 소실되면 미반영 당첨 명단은 복원할 수 없다 (ADR-0019) |
 
 ## 6. Failback 원칙
 - Failback은 **긴급하지 않다.** 계획된 점검 시간에 수행한다.
-- 방향을 뒤집은 CDC(Cloud SQL → RDS) 또는 덤프/복원으로 RDS를 최신화한 뒤 전환.
+- 방향을 뒤집은 논리 복제(Cloud SQL PUBLICATION → RDS SUBSCRIPTION) 또는 덤프/복원으로 RDS를 최신화한 뒤 전환. RDS 에만 커밋된 행이 있으면 역방향 apply 가 고유키 충돌로 멈추므로 먼저 따로 빼 둔다 (ADR-0020).
 - 상세: [dr-runbook.md §3](dr-runbook.md)
