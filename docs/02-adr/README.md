@@ -24,7 +24,7 @@
 | [0018](0018-quiz-immediate-reward.md) | 퀴즈 당첨 보상을 다시 즉시 지급 (ADR-0017 철회) | Proposed |
 | [0019](0019-redis-stream-ledger-sync.md) | 원장 반영 경로를 Kafka 에서 Redis Stream 으로 변경 (ADR-0008 대체) | Accepted |
 | [0020](0020-postgresql-logical-replication.md) | DR 복제를 PostgreSQL 네이티브 논리 복제로 변경 (ADR-0005 대체) | Accepted |
-| [0021](0021-spring-boot-4-upgrade.md) | Spring Boot 3.5 → 4.1 업그레이드 | Proposed |
+| [0021](0021-spring-boot-4-upgrade.md) | Spring Boot 3.5 → 4.1 업그레이드 | Accepted |
 
 ## 템플릿
 ```markdown

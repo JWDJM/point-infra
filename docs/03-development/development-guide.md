@@ -5,7 +5,7 @@
 | 영역 | 선택 | 버전 (고정) |
 |---|---|---|
 | 언어 / 런타임 | Java (Temurin) | 21 LTS |
-| 프레임워크 | Spring Boot | 3.x (현재 3.5.16) |
+| 프레임워크 | Spring Boot | 4.x (현재 4.1.3, ADR-0021) |
 | 빌드 | Gradle (wrapper) | 9.x (현재 9.9.0) |
 | DB 마이그레이션 | Flyway | - |
 | 테스트 | JUnit 5, Testcontainers, ArchUnit | Testcontainers 1.21.x, ArchUnit 1.5.x |
