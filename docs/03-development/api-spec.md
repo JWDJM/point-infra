@@ -52,7 +52,7 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <access token>` �
   - 한 번 쓴 `eventId` 는 다시 쓸 수 없다 (409) — 같은 id 를 다시 열면 멱등키(`eventId:userId`)가 겹쳐 새 당첨이 원장에서 무시된다
   - `endsAt` 이 지나면 참여 마감(answers → 410). 이벤트 키는 `endsAt` + 1일에 만료 (ADR-0007), 보상 Stream 은 만료되지 않는다 (ADR-0019, 7일 보존)
 - 🧪 `open` 은 `@Profile("local")` 이라 aws·gcp-dr 프로필에는 없다 (데모·테스트용 초기화)
-- 프론트 이벤트 화면은 아직 `open` 도 호출한다 → aws 배포 시 그 버튼만 404 (point-frontend#4)
+- 프론트 이벤트 화면은 `status` 만 호출한다 (관리자 패널은 조회 전용, point-frontend#4)
 
 ## 운영·인프라 검증 (ops)
 
