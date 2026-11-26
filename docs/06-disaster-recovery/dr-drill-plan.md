@@ -5,7 +5,7 @@
 | 유형 | 주기 | 방법 | 운영 영향 |
 |---|---|---|---|
 | Tabletop | 분기 | 런북 읽으며 단계별 담당·판단 점검 | 없음 |
-| 부분 훈련 (Compute) | 월 1회 | `gcp-dr-compute` apply → monolith 기동 → Cloud SQL **읽기 복제본/클론**에 연결 → destroy | 없음 (DNS 미전환) |
+| 부분 훈련 (Compute) | 월 1회 | `gcp-dr-compute` apply → core-service 기동 → Cloud SQL **읽기 복제본/클론**에 연결 → destroy | 없음 (DNS 미전환) |
 | 전체 훈련 (Full Failover) | 프로젝트 중 2회 | AWS 측 ALB Health Check 강제 실패 → 전 과정 수행 → Failback | 점검 공지 필요 |
 
 > 부분 훈련에서 실 Cloud SQL을 승격하면 복제가 깨지므로, **클론 인스턴스**를 만들어 연결한다.

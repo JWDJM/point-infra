@@ -15,8 +15,8 @@
 
 | SLI | SLO | 측정 |
 |---|---|---|
-| monolith 가용성 | 99.9% / 30일 | 5xx 제외 성공 요청 비율 (ALB) |
-| monolith p95 지연 | < 300ms | `http_server_requests_seconds` |
+| core-service 가용성 | 99.9% / 30일 | 5xx 제외 성공 요청 비율 (ALB) |
+| core-service p95 지연 | < 300ms | `http_server_requests_seconds` |
 | event p95 지연 (피크) | < 500ms | 동일 |
 | 원장 반영 지연 | 99% 이벤트가 60초 내 반영 | Stream 의 가장 오래된 미처리 항목 나이 (`XPENDING` / consumer group lag, Stream ID 의 타임스탬프로 시간 환산) |
 | DR 복제 Lag (= RPO) | p99 ≤ 5초 | `dr_heartbeat` 기반 (RDS pg_cron 이 1초마다 갱신) |

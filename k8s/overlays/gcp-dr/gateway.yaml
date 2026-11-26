@@ -28,22 +28,22 @@ spec:
     - matches: [{ path: { type: PathPrefix, value: /api/events } }]
       backendRefs: [{ name: maintenance, port: 80 }]   # 503 + EVENT_MAINTENANCE (ADR-0004)
     - matches: [{ path: { type: PathPrefix, value: /api } }]
-      backendRefs: [{ name: monolith, port: 80 }]
+      backendRefs: [{ name: core-service, port: 80 }]
     # TODO(#15): k8s/base/web 이 생기기 전까지 이 규칙은 backend 없음 → "/" 만 500 (다른 경로는 정상)
     - matches: [{ path: { type: PathPrefix, value: / } }]
       backendRefs: [{ name: web, port: 80 }]
 ---
-# GKE LB 헬스체크 경로 (기본값은 "/" → monolith 는 401/404, maintenance 는 503 이라 unhealthy 가 된다)
+# GKE LB 헬스체크 경로 (기본값은 "/" → core-service 는 401/404, maintenance 는 503 이라 unhealthy 가 된다)
 apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
-  name: monolith
+  name: core-service
 spec:
   default:
     config:
       type: HTTP
       httpHealthCheck: { requestPath: /actuator/health/readiness, port: 8080 }
-  targetRef: { group: "", kind: Service, name: monolith }
+  targetRef: { group: "", kind: Service, name: core-service }
 ---
 apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy

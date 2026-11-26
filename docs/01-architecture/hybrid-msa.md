@@ -27,7 +27,7 @@
 ## 3. 모놀리스 내부 모듈 경계
 
 ```
-com.pointplatform.monolith
+com.pointplatform.core
 ├── user/      (api, application, domain, infra)
 ├── asset/
 ├── point/     ← Redis Stream consumer 포함 (reward 반영)
@@ -45,9 +45,9 @@ com.pointplatform.monolith
 
 | From → To | 방식 | 이유 |
 |---|---|---|
-| Client → monolith / event | 동기 HTTP (ALB 경로 라우팅) | 단순 |
-| event → point(원장) | **비동기 Redis Stream** (consumer group, ADR-0019) | 피크 트래픽을 원장 DB에 직접 전달하지 않음 (부하 평탄화). monolith 가 자기 속도로 pull |
-| event → user (인증) | JWT 자체 검증 (공개키) | 이벤트 피크 시 monolith 호출 없음 |
+| Client → core-service / event | 동기 HTTP (ALB 경로 라우팅) | 단순 |
+| event → point(원장) | **비동기 Redis Stream** (consumer group, ADR-0019) | 피크 트래픽을 원장 DB에 직접 전달하지 않음 (부하 평탄화). core-service 가 자기 속도로 pull |
+| event → user (인증) | JWT 자체 검증 (공개키) | 이벤트 피크 시 core-service 호출 없음 |
 
 ## 5. 정합성 보장
 

@@ -16,11 +16,11 @@
 
 | 시나리오 | 패턴 | 목표 | 검증 포인트 |
 |---|---|---|---|
-| S1 Baseline | monolith 100 RPS 30분 | p95 < 300ms | 평시 기준선 |
+| S1 Baseline | core-service 100 RPS 30분 | p95 < 300ms | 평시 기준선 |
 | S2 Spike | event 0 → 5,000 RPS (10초 내) 5분 유지 | p95 < 500ms, 에러 < 0.1% | KEDA 사전 확장 有/無 비교 |
 | S3 Duplicate | 동일 사용자 동시 10회 제출 | 지급 1회 | Redis 원자성 + 원장 멱등 |
 | S4 Stock | 당첨 1,000명, 참여 50,000명 | 정확히 1,000건 지급 | 초과 지급 0 |
-| S5 Isolation | S2 실행 중 monolith 지연 측정 | monolith p95 변화 < 10% | 장애/부하 격리 |
+| S5 Isolation | S2 실행 중 core-service 지연 측정 | core-service p95 변화 < 10% | 장애/부하 격리 |
 | S6 Spot 회수 | S2 중 Spot 노드 강제 종료 | 에러율 < 1% | PDB, 재스케줄 |
 
 - 스크립트: `load-test/k6/s2-event-spike.js`, `s3-duplicate.js` 만 있다 (S1, S4~S6 없음).
@@ -31,7 +31,7 @@
 |---|---|---|---|
 | 사전 확장 효과 | HPA만 | KEDA Cron + HPA | 첫 30초 에러율·지연 |
 | 노드 확장 속도 | Cluster Autoscaler | Karpenter | Pending → Running 시간 |
-| 격리 효과 | 전체 모놀리스 (event 포함) | 하이브리드 | monolith p95 |
+| 격리 효과 | 전체 모놀리스 (event 포함) | 하이브리드 | core-service p95 |
 
 ## 3. 결과 기록 위치
 `load-test/results/YYYYMMDD-<scenario>.md` + Grafana 스냅샷

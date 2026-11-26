@@ -12,10 +12,10 @@
 - 출석 보상은 처음부터 즉시 지급이라, 같은 Kafka 토픽·consumer 에서 두 가지 지급 방식이 공존하는 복잡도도 있었다.
 
 ## 결정
-퀴즈 당첨(`reason=QUIZ_REWARD`)도 출석과 같이 **monolith consumer 가 원장에 바로 멱등 반영**한다 (ADR-0008 원래 흐름).
+퀴즈 당첨(`reason=QUIZ_REWARD`)도 출석과 같이 **core-service consumer 가 원장에 바로 멱등 반영**한다 (ADR-0008 원래 흐름).
 
 ```
-Redis Lua 판정(202) → Kafka point.reward.requested → monolith consumer
+Redis Lua 판정(202) → Kafka point.reward.requested → core-service consumer
   → point_ledger INSERT (idempotency_key = {eventId}:{userId}, UNIQUE) + point_wallet UPDATE → 잔액 즉시 반영 (보통 1초 안쪽)
 ```
 
@@ -33,7 +33,7 @@ Redis Lua 판정(202) → Kafka point.reward.requested → monolith consumer
 | Failback (AWS 복구) | MSK 잔여 메시지를 consumer 가 이어서 소비 → 나머지 당첨자 지급. 이미 지급된 건은 `idempotency_key` UNIQUE 로 무시 | 자동 (멱등) — 단 아래 두 경계 조건을 runbook 으로 막는다 |
 | RDS 에는 커밋됐지만 CDC 지연(≤ 5초)으로 Cloud SQL 에 없는 원장 | 이 메시지들은 MSK 오프셋이 **이미 커밋됨** → Failback 동기화에서 RDS 를 Cloud SQL 기준으로 덮어쓰면 DB 에서도 사라지고 MSK 에서도 다시 오지 않는다 | consumer 재개 전 **오프셋을 `last_replicated_at` − 여유 시각으로 되감는다**. 다시 들어오는 메시지 중 이미 있는 건은 멱등키로 무시, 빠진 건만 채워진다 ([dr-runbook §5](../06-disaster-recovery/dr-runbook.md#5-failback-절차-계획된-점검) 6-1) |
 | DR 기간이 토픽 보존 기간(7일)을 넘김 | 미반영 메시지가 만료돼 **복원 불가** | 보존 기간을 예상 최대 DR 기간 이상으로 상향 검토 (후속). 넘길 것 같으면 만료 전 토픽을 백업 |
-| AWS 가 먼저 살아나 AWS monolith consumer 가 Failback 전에 소비 시작 | DR 기간 쓰기가 없는 RDS 에 지급 → Failback 동기화와 충돌 | AWS 복구를 확인하면 **AWS monolith 를 0 으로 축소(또는 `KAFKA_ENABLED=false`)한 채 유지**, Failback 6단계에서만 재개 |
+| AWS 가 먼저 살아나 AWS core-service consumer 가 Failback 전에 소비 시작 | DR 기간 쓰기가 없는 RDS 에 지급 → Failback 동기화와 충돌 | AWS 복구를 확인하면 **AWS core-service 를 0 으로 축소(또는 `KAFKA_ENABLED=false`)한 채 유지**, Failback 6단계에서만 재개 |
 | AWS 영구 소실 | MSK·Redis 당첨 기록 소실 → **미지급 당첨자 명단을 복원할 수 없다** | 비즈니스 결정 (해당 이벤트 재진행 / 참여자 일괄 보상). RPO 범위의 데이터 손실로 받아들인다 |
 
 - 부분 지급 상태의 **판정 기준**은 없어진다. 대신 lag 를 낮게 유지하는 것이 RPO 를 줄이는 수단이다 (consumer lag 알람, 피크 전 파티션·consumer 수 점검).

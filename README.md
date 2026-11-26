@@ -27,11 +27,11 @@
                           ▼                                                                    ▼
   ┌──────────────── AWS ap-northeast-2 (Main, 100%) ────────────────┐   ┌──────── GCP asia-northeast3 (DR) ────────┐
   │ WAF → ALB (Gateway API)                                          │   │ [상시] VPC, Cloud SQL(복제 대상),          │
-  │   ├─ /api/**         → Monolith (user/asset/point/cs)  On-Demand │   │        Static IP, Secret Manager,          │
+  │   ├─ /api/**         → core-service user/asset/point/cs OnDemand │   │        Static IP, Secret Manager,          │
   │   ├─ /api/events/**  → event-service (MSA)       Karpenter Spot  │   │        Artifact Registry                    │
   │   └─ /**             → web (SPA)                                 │   │ [장애 시 생성] GKE + ArgoCD               │
-  │                         │ Redis(대기열/중복방지/판정)              │   │        → Monolith + web 배포               │
-  │                         └─ Redis Stream ──▶ Monolith point 모듈   │   │        → /api/events/** = 점검 페이지       │
+  │                         │ Redis(대기열/중복방지/판정)              │   │        → core-service + web 배포           │
+  │                         └─ Redis Stream ──▶ core-service(point)   │   │        → /api/events/** = 점검 페이지       │
   │ RDS PostgreSQL ──(PostgreSQL 논리 복제)────────── HA VPN ────────┼──▶│                                            │
   └──────────────────────────────────────────────────────────────────┘   └────────────────────────────────────────────┘
 ```
@@ -74,7 +74,7 @@
 | 레포 | 내용 |
 |---|---|
 | **point-infra** (이 레포) | Terraform, K8s(GitOps), CDC, DR, 부하 테스트, **설계 문서 · 팀 규칙 원본** |
-| [point-backend](https://github.com/ZZGG2/point-backend) | Spring Boot — monolith, event-service, OpenAPI |
+| [point-backend](https://github.com/ZZGG2/point-backend) | Spring Boot — core-service, event-service, OpenAPI |
 | [point-frontend](https://github.com/ZZGG2/point-frontend) | React + Vite + TypeScript SPA |
 
 분리 이유: [ADR-0012](docs/02-adr/0012-polyrepo-split.md)
