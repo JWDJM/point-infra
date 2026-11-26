@@ -10,7 +10,7 @@
 | DB 마이그레이션 | Flyway | - |
 | 테스트 | JUnit 5, Testcontainers, ArchUnit | Testcontainers 1.21.x, ArchUnit 1.5.x |
 | 컨테이너 | Docker (multi-stage, `eclipse-temurin:21-jre`, non-root uid 10001) · web 은 `nginx-unprivileged` | - |
-| 로컬 인프라 | Docker Compose (PostgreSQL 16, Redis 7) — 현재 compose 의 Kafka·Kafka UI 는 backend 의 Redis Stream 전환(ADR-0019) 때 제거 | - |
+| 로컬 인프라 | Docker Compose (PostgreSQL 16, Redis 7) | - |
 | 부하 테스트 | k6 | - |
 | 프론트엔드 | React 18 + Vite + TypeScript (strict), TanStack Query, openapi-typescript | Node 20 LTS |
 
@@ -57,5 +57,5 @@ make local-down
 | 규칙 | 이유 |
 |---|---|
 | 클라우드 SDK 직접 호출 금지 (S3 등은 추상화 인터페이스 뒤로) | GCP에서도 같은 이미지가 동작해야 함 |
-| Redis 미연결 시에도 core-service 기동 가능 (gcp-dr 오버레이가 원장 Stream consumer·점검을 끈다 — 지금 플래그는 `KAFKA_ENABLED=false`, ADR-0019 전환 때 이름 교체) | DR 환경엔 Redis 없음 (선택적 복구, ADR-0004) |
+| Redis 미연결 시에도 core-service 기동 가능 (gcp-dr 오버레이의 `REWARD_STREAM_ENABLED=false` 가 원장 Stream consumer·Redis health·점검을 끈다, ADR-0019) | DR 환경엔 Redis 없음 (선택적 복구, ADR-0004) |
 | PK는 `IDENTITY` 대신 시퀀스 + 보정 가능 구조 또는 UUIDv7 검토 — 현재는 `IDENTITY` + Failover 시 `scripts/dr/fix-sequences.sql` 로 보정 | Failover 시 시퀀스 충돌 방지 |

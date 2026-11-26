@@ -40,7 +40,7 @@
 
 - 메시지 필드: `idempotencyKey`, `userId`, `eventId`, `amount`, `reason`, `occurredAt` (스키마 `point-backend/api/events/point.reward.requested.schema.json` 재사용)
 - 소비: `XREADGROUP` → 반영 성공 시 `XACK`. 반영이 멱등(`idempotency_key` UNIQUE)이라 at-least-once 로 충분하다.
-- 재시도: 처리 안 된 항목(PEL)은 `XAUTOCLAIM`(min-idle 예: 60초)으로 다른 파드가 가져간다.
+- 재시도: 처리 안 된 항목(PEL)은 min-idle(기본 60초)이 지나면 다른 파드가 가져간다. 구현은 `XPENDING` + `XCLAIM` (`XAUTOCLAIM` 과 같은 동작 — Spring Data Redis 에 `XAUTOCLAIM` 이 없음). 설정: `app.reward-stream.min-idle`, `max-deliveries`(기본 5)
 - `XACK` 된 항목도 보존 기간까지 남긴다 → Failback 때 consumer group 위치를 되감아(`XGROUP SETID`) 다시 반영하는 근거 ([dr-runbook](../06-disaster-recovery/dr-runbook.md))
 - 사용자별 순서는 Stream 이 보장하지 않는다. 같은 사용자의 반영은 지갑 행 잠금으로 직렬화된다 ([domain-model §3](../03-development/domain-model.md)).
 - Redis 장애 조치(비동기 복제) 시 마지막 쓰기가 유실될 수 있다 → 필요하면 스크립트 뒤 `WAIT 1 <ms>` (지연과 맞교환, 구현 시 측정)

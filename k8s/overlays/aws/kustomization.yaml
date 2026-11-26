@@ -5,8 +5,8 @@ resources:
   - ../../base/event-service
   - gateway.yaml          # Gateway + HTTPRoute (ADR-0014)
 configMapGenerator:
-  - name: core-service-config   # KAFKA_ENABLED: 이름은 point-backend 가 Redis Stream consumer 로 바뀔 때 함께 교체 (ADR-0019)
-    literals: [SPRING_PROFILES_ACTIVE=aws, KAFKA_ENABLED=true, DR_MODE=false]
+  - name: core-service-config   # REWARD_STREAM_ENABLED=true = 원장 반영 Redis Stream consumer 활성 (ADR-0019). REDIS_HOST 는 elasticache 모듈 생성 후 추가
+    literals: [SPRING_PROFILES_ACTIVE=aws, REWARD_STREAM_ENABLED=true, DR_MODE=false]
   - name: event-config
     literals: [SPRING_PROFILES_ACTIVE=aws]
 images:   # CI 가 태그를 자동 커밋
