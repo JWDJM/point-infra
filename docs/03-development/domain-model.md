@@ -30,7 +30,7 @@ CREATE TABLE point.point_ledger (
 CREATE INDEX idx_ledger_user_created ON point.point_ledger (user_id, created_at DESC);
 ```
 
-## 3. 반영 흐름 (Kafka consumer · 포인트 사용 공통 — `PointService.apply`)
+## 3. 반영 흐름 (Redis Stream consumer · 포인트 사용 공통 — `PointService.apply`)
 
 ```
 BEGIN;
@@ -44,7 +44,7 @@ COMMIT;
 ```
 - 같은 사용자의 쓰기는 지갑 행 잠금으로 한 줄로 서므로, 사용자별 원장 `id` 순서 = 커밋 순서이고 `balance_after` 가 끊김 없이 이어진다 (§4 대사의 전제).
 - 멱등키: 이벤트 보상 `{eventId}:{userId}`, 포인트 사용 `use:{userId}:{Idempotency-Key 헤더}` (다른 사용자가 같은 키를 보내도 서로 묻히지 않게 사용자별로 범위 구분).
-- 실패 시 3회 재시도 → `point.reward.dlq` 로 이동 → 운영자 재처리
+- Stream 소비 실패 시 PEL 재시도(`XAUTOCLAIM`) → 한도 초과 시 `reward:dlq` Stream 으로 이동 → 운영자 재처리 (ADR-0019)
 - 위 흐름은 출석 보상·퀴즈 당첨 공통 (`reason` 은 구분용, ADR-0018)
 
 ### 3.1 퀴즈 당첨
@@ -61,11 +61,11 @@ COMMIT;
 
 | 비교 대상 | 주기 | 불일치 처리 | 구현 |
 |---|---|---|---|
-| Redis 당첨자 Set ↔ ledger(source=EVENT, reference_id=eventId) (퀴즈) | 이벤트 종료 후 | 누락분 재발행 (멱등) | ❌ (ADR-0018 후속) |
+| Redis 당첨자 Set ↔ ledger(source=EVENT, reference_id=eventId) (퀴즈) | 이벤트 종료 후 | 누락분을 Stream 에 재등록 (멱등) | ❌ (ADR-0018 후속) |
 | 사용자별 마지막 `balance_after` ↔ wallet.balance | DR 승격 시 | 지갑을 원장 기준으로 보정 | ✅ `scripts/dr/reconcile-wallet.sql` |
 | Redis 출석 비트맵 ↔ ledger(source=EVENT, reference_id=attendance-*) | 일 1회 | 누락분 재발행 | ❌ |
 | Σ ledger.amount ↔ wallet.balance (사용자별·전체), `balance_after` 연속성 | 일 1회 | 알람 + 수동 조사 | ❌ (평상시 검증 배치·알람 없음) |
-| RDS ↔ Cloud SQL 행 수/체크섬 (CDC 대상 테이블) | 일 1회 | 복제 재동기화 | ❌ |
+| RDS ↔ Cloud SQL 행 수/체크섬 (DR 복제 대상 테이블) | 일 1회 | 복제 재동기화 | ❌ |
 
 ## 5. 조회
 

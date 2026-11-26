@@ -32,12 +32,12 @@
 
 ### 대표 시나리오
 > "매주 수요일 10:00, 선착순 10만 명에게 퀴즈 정답 시 500P 지급"
-> → 09:55 KEDA Cron이 event-service를 사전 확장 → 10:00 트래픽 폭주 → Redis 대기열/중복 방지 → Kafka로 지급 이벤트 발행 → Monolith point 모듈이 멱등하게 원장 반영.
+> → 09:55 KEDA Cron이 event-service를 사전 확장 → 10:00 트래픽 폭주 → Redis 대기열/중복 방지 → 당첨 판정과 함께 Redis Stream 에 지급 기록 → Monolith point 모듈이 읽어 멱등하게 원장 반영.
 
 ## 4. 범위
 
 ### In Scope
-- AWS Main 환경 전체 (VPC, EKS, RDS PostgreSQL, ElastiCache, MSK, Route 53 등)
+- AWS Main 환경 전체 (VPC, EKS, RDS PostgreSQL, ElastiCache, Route 53 등)
 - GCP DR Pilot Light (Cloud SQL 상시 복제 + GKE 온디맨드 생성)
 - Terraform 모듈, GitHub Actions CI/CD, ArgoCD GitOps
 - 관측성(Prometheus/Grafana, CloudWatch), 부하 테스트(k6), DR 훈련

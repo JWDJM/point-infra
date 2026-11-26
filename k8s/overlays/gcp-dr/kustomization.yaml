@@ -6,7 +6,7 @@ resources:
   - ../../base/maintenance
   - gateway.yaml          # Gateway + HTTPRoute (ADR-0014)
 configMapGenerator:
-  - name: monolith-config
+  - name: monolith-config   # KAFKA_ENABLED=false = 원장 consumer 비활성. 이름은 point-backend 전환 때 함께 교체 (ADR-0019)
     literals: [SPRING_PROFILES_ACTIVE=gcp-dr, KAFKA_ENABLED=false, DR_MODE=true]
 images:   # Artifact Registry (CI 이중 푸시, ADR-0010)
   - name: monolith

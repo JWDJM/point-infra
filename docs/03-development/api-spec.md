@@ -42,7 +42,7 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <access token>` �
 | POST | `/api/events/attendance` | 출석체크 (KST 하루 1회) | 202 지급 예정 / 409 이미 출석 | ✅ |
 | POST | `/api/events/{eventId}/queue` | 대기열 진입 | 200 `{ position }` | ❌ |
 | GET | `/api/events/{eventId}/queue/me` | 내 순번 | 200 `{ position, admitted }` | ❌ |
-| POST | `/api/events/{eventId}/answers` | 퀴즈 정답 제출 | 202 당첨(지급 예정 — Kafka 경유 원장 반영, 보통 1초 안쪽) / 200 낙첨(재고 소진) / 409 중복 / 410 이벤트 없음·마감 | ✅ |
+| POST | `/api/events/{eventId}/answers` | 퀴즈 정답 제출 | 202 당첨(지급 예정 — Redis Stream 경유 원장 반영, 보통 1초 안쪽) / 200 낙첨(재고 소진) / 409 중복 / 410 이벤트 없음·마감 | ✅ |
 | POST | `/api/events/{eventId}/open?stock=&amount=` | 이벤트 열기·초기화 (인증 없음) | 200 상태 | 🧪 |
 | GET | `/api/events/{eventId}/status` | 재고·참여자·당첨자 수 (인증 없음) | 200 | 🧪 |
 
@@ -55,10 +55,10 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <access token>` �
 
 | 서비스 | Method | Path | 설명 |
 |---|---|---|---|
-| monolith | GET | `/api/system/info` | 응답 Pod·프로필·DR 모드, PostgreSQL(버전·접속 노드·`pg_is_in_recovery`·`dr_heartbeat` 경과), Kafka(`point-ledger` 컨슈머 lag) |
+| monolith | GET | `/api/system/info` | 응답 Pod·프로필·DR 모드, PostgreSQL(버전·접속 노드·`pg_is_in_recovery`·`dr_heartbeat` 경과), Redis Stream(consumer group `point-ledger` 의 pending 수·DLQ 길이) |
 | monolith | GET | `/api/system/whoami` | 응답 Pod 정보만 (부하 분산 확인용) |
 | monolith | GET | `/api/system/ledger?recent=` | 원장 집계(지갑 수·잔액 합·출처별 합계) + 전체 사용자 최근 활동 |
-| event-service | GET | `/api/events/system/info` | 응답 Pod, Redis(버전·role·PING), Kafka(토픽·누적 발행 offset). DR 모드에서는 503 `EVENT_MAINTENANCE` |
+| event-service | GET | `/api/events/system/info` | 응답 Pod, Redis(버전·role·PING), 보상 Stream(등록된 Stream 수·길이). DR 모드에서는 503 `EVENT_MAINTENANCE` |
 | event-service | GET | `/api/events/system/whoami` | 응답 Pod 정보만 |
 
 ## 관리자 (admin)
@@ -72,7 +72,9 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <access token>` �
 | `/api/events/**` | 503 `{ "code": "EVENT_MAINTENANCE", "message": "이벤트는 시스템 점검으로 일시 중단되었습니다." }` |
 | 그 외 | 정상 |
 
-## Kafka 메시지: `point.reward.requested`
+## 원장 반영 메시지: Redis Stream (ADR-0019)
+
+Stream 항목의 필드. 스키마는 `point.reward.requested` 그대로 쓴다 (`api/events/point.reward.requested.schema.json`).
 
 ```json
 {
@@ -89,5 +91,6 @@ Base: `https://api.<domain>` · 인증: `Authorization: Bearer <access token>` �
 |---|---|
 | `reason` | `QUIZ_REWARD`, `ATTENDANCE_REWARD` → 둘 다 원장에 즉시 멱등 반영 (ADR-0018). 로그·대사 구분용 |
 | `idempotencyKey` | `{eventId}:{userId}` — 출석은 `eventId = attendance-{yyyyMMdd}` |
-| Kafka key | `userId` (같은 사용자 순서 보장) |
-- 소비 실패: 1초 간격 3회 재시도 후 `point.reward.dlq` (monolith `RewardConsumerErrorConfig`)
+| Stream | 퀴즈 `event:{id}:rewards`, 출석 `attendance:{yyyyMMdd}:rewards`. event-service Lua 가 판정과 같은 스크립트에서 `XADD` |
+| Consumer group | `point-ledger` (monolith). 반영 성공 시 `XACK` |
+- 소비 실패: PEL 에 남은 항목을 `XAUTOCLAIM` 으로 재시도, 전달 횟수 한도(예: 5) 초과 또는 비재시도 오류면 `reward:dlq` Stream 으로 이동

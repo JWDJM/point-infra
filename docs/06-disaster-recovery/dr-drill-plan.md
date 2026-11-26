@@ -33,5 +33,5 @@
 - RTO ≤ 30분, RPO ≤ 5초
 - 스모크 테스트 100% 통과
 - 원장 대사 불일치 0건 (Failback 후)
-- Failback 후 consumer lag 0, 이벤트별 Redis 당첨자 수 = 원장 지급 건수 (ADR-0018)
+- Failback 후 Stream pending 0, 이벤트별 Redis 당첨자 수 = 원장 지급 건수 (ADR-0018)
 - 수동 콘솔 작업 0회

@@ -1,5 +1,5 @@
 # ADR-0020: DR 복제를 PostgreSQL 네이티브 논리 복제로 변경
-- 상태: **Proposed** (팀 승인 전 — 승인되면 ADR-0005 상태를 `Superseded by ADR-0020` 로 변경)
+- 상태: **Accepted** (승인: 2026-11-26 KST, #31)
 - 날짜: 2026-11-25 KST
 - 대체: [ADR-0005](0005-cdc-debezium-replication.md) (Debezium CDC 기반 비동기 복제)
 - 관련: ADR-0010 (DR 독립성), ADR-0013 (RDS), ADR-0018 (Failback 지급 원칙), ADR-0019 (Kafka 제거의 다른 절반)

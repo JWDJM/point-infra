@@ -67,8 +67,8 @@ reviews:
 
     - path: "cdc/**"
       instructions: |
-        - 커넥터 설정에 자격 증명 평문이 없어야 한다 (외부 시크릿 참조)
-        - Debezium 비동기 CDC 전제(ADR-0005)와 RPO ≤ 5초 목표에 영향을 주는 설정 변경인지 확인
+        - 복제 계정 비밀번호·접속 문자열에 자격 증명 평문이 없어야 한다 (psql 변수로 시크릿 주입)
+        - PostgreSQL 논리 복제 전제(ADR-0020)와 RPO ≤ 5초 목표에 영향을 주는 변경인지 확인 (Publication 대상 테이블, slot, heartbeat)
 
     - path: ".github/workflows/**"
       instructions: |

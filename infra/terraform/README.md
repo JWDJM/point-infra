@@ -14,7 +14,7 @@
 | 모듈 | 상태 |
 |---|---|
 | aws/vpc, aws/eks, DB 모듈 (ADR-0006 기준 — rds 로 교체 예정), gcp/argocd-bootstrap | ✅ |
-| aws/karpenter, elasticache, msk, ecr, edge (→ waf 로 교체 예정), gcp/network, cloudsql, gke, shared/vpn | 🟡 |
+| aws/karpenter, elasticache, ecr, edge (→ waf 로 교체 예정), gcp/network, cloudsql, gke, shared/vpn | 🟡 |
 
 ## 설계(ADR) ↔ 현재 스캐폴딩 차이
 

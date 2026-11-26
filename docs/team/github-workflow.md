@@ -131,8 +131,8 @@ Refs: #42
 | API 추가 (하위 호환) | ① backend PR: `openapi.yaml` + 구현 → 머지 ② frontend: `gen:api` 후 사용 |
 | API Breaking Change | ① backend에 `breaking-change` + `cross-repo` 이슈, frontend 연계 이슈 링크 ② 새 필드/버전 추가(구 필드 유지) ③ frontend 전환 ④ 구 필드 제거 PR (**Expand → Migrate → Contract**) |
 | 새 환경 변수 / 시크릿 | ① infra PR: ConfigMap·ExternalSecret 추가 → 머지 ② backend PR: 사용 코드 |
-| 새 Kafka 토픽 | ① infra: data-architecture 문서 + 토픽 정의 ② backend: producer/consumer |
-| DB 테이블 추가 (CDC 대상) | ① backend: Flyway ② infra: `cdc/` publication·connector 갱신 (같은 주 내) |
+| 새 보상 Redis Stream | ① infra: data-architecture §3 Stream 표 ② backend: Lua `XADD` / consumer |
+| DB 테이블 추가 (DR 복제 대상) | ① backend: Flyway (RDS·Cloud SQL 양쪽) ② infra: `cdc/publication.sql` 갱신 + `ALTER PUBLICATION … ADD TABLE` → `ALTER SUBSCRIPTION … REFRESH PUBLICATION` (같은 주 내) |
 | 공통 AI 규칙 변경 | ① infra: `team/ai/AGENTS.common.md` 수정 + 버전 업 ② `make sync-ai-rules` ③ 각 레포 동기화 PR |
 
 - 교차 레포 PR은 본문에 `Related: <org>/<repo>#<번호>`로 상호 링크.

@@ -9,13 +9,13 @@
 
 | 영역 | 상태 | 요약 |
 |---|---|---|
-| 애플리케이션 (point-backend) | ✅ 핵심 경로 | 회원가입·로그인(JWT + refresh token), 잔액·내역·사용, 출석, 퀴즈(즉시 지급, ADR-0018), Kafka + DLQ, 운영 API. asset·cs·대기열·환불은 없음 |
+| 애플리케이션 (point-backend) | ✅ 핵심 경로 | 회원가입·로그인(JWT + refresh token), 잔액·내역·사용, 출석, 퀴즈(즉시 지급, ADR-0018), Kafka + DLQ(**ADR-0019 의 Redis Stream 으로 전환 필요**), 운영 API. asset·cs·대기열·환불은 없음 |
 | 프론트엔드 (point-frontend) | ✅ 핵심 화면 | 로그인/가입, 홈, 이벤트, 결제, 내역, 관리자. **이벤트 화면이 local 전용 API 를 호출** (§3.3) |
-| Terraform (AWS) | 🟡 | vpc, eks, DB 모듈(ADR-0006 기준 — RDS 로 교체 예정) 작성. karpenter·elasticache·msk·ecr·edge 는 스텁, `argocd-bootstrap` 없음 |
+| Terraform (AWS) | 🟡 | vpc, eks, DB 모듈(ADR-0006 기준 — RDS 로 교체 예정) 작성. karpenter·elasticache·ecr·edge 는 스텁, `argocd-bootstrap` 없음 |
 | Terraform (GCP) | 🟡 | argocd-bootstrap 작성. network·cloudsql·gke·vpn 스텁 |
 | K8s / GitOps | 🟡 | base(monolith, event-service, maintenance), overlays, argocd apps 일부. Gateway API(Gateway·HTTPRoute) 매니페스트 ✅, web·db-init·ExternalSecret 없음 |
 | CI/CD | 🟡 | backend·frontend `ci.yml`(테스트·빌드·Trivy), infra `terraform-plan.yml`(정적 검증). 이미지 push·태그 bump·apply·drift 는 TODO |
-| CDC | ✅ 설정 파일 | Publication, Source/Sink 커넥터 JSON. 배포(MSK Connect)는 msk 모듈 스텁 |
+| DR 복제 (`cdc/`) | ✅ 설정 SQL | 논리 복제 Publication(RDS)·Subscription(Cloud SQL) SQL (ADR-0020). 적용 자동화·sg-rds 규칙·RDS 파라미터(pg_cron, `max_slot_wal_keep_size`)는 없음 |
 | DR 자동화 | 🟡 | `dr-failover.yml` 단계 골격, SQL 2종(시퀀스·지갑) 작성. 셸 스크립트 5종은 TODO |
 | 부하 테스트 | 🟡 | k6 S2·S3 만, **`X-User-Id` 헤더 기반이라 현재 JWT 인증과 맞지 않음** |
 | 관측성 | 🟡 | 앱이 `/actuator/prometheus` 노출. kube-prometheus-stack·Fluent Bit·대시보드·알람 없음 |
@@ -29,12 +29,12 @@
 | `modules/aws/vpc` | ✅ | terraform-aws-modules/vpc `~> 5.0`. VPC Endpoint(ecr·sts·secretsmanager·logs)는 TODO |
 | `modules/aws/eks` | ✅ | terraform-aws-modules/eks `~> 20.0`. API 엔드포인트 public(허용 CIDR 제한 TODO) |
 | DB 모듈 (현재 스캐폴딩) | 🟡 | ADR-0006(Superseded) 기준 클러스터형 DB 모듈. ADR-0013 의 `modules/aws/rds` (RDS for PostgreSQL 16) 로 교체 예정 — AWS DB 영역은 #8 담당자가 개인 샌드박스에서 검증 중 ([infra/terraform/README](../../infra/terraform/README.md)) |
-| `modules/aws/karpenter`, `elasticache`, `msk`, `ecr` | 🟡 스텁 | `# TODO: 구현 예정` 만 있음 |
+| `modules/aws/karpenter`, `elasticache`, `ecr` | 🟡 스텁 | `# TODO: 구현 예정` 만 있음 |
 | `modules/aws/edge` | 🟡 스텁 | 목표는 `modules/aws/waf` (ADR-0014, 0015 — CloudFront 미사용) |
 | `modules/aws/argocd-bootstrap` | ❌ | ADR-0009 (EKS 쪽 ArgoCD + root Application) |
 | `modules/gcp/argocd-bootstrap` | ✅ | helm_release + root Application |
 | `modules/gcp/network`, `cloudsql`, `gke`, `shared/vpn` | 🟡 스텁 | |
-| `envs/aws-main` | 🟡 | vpc + eks + DB 모듈(교체 예정) 조립. karpenter·elasticache·msk·ecr·edge·vpn 은 TODO 주석 |
+| `envs/aws-main` | 🟡 | vpc + eks + DB 모듈(교체 예정) 조립. karpenter·elasticache·ecr·edge·vpn 은 TODO 주석 |
 
 ### 2.2 K8s / GitOps (`k8s/`)
 | 항목 | 설계 | 현재 | 근거 |
@@ -44,10 +44,10 @@
 | DB 초기화 | `overlays/aws/db-init.yaml` (`app_rw` 생성 Sync Job) | ❌ 없음 | ADR-0013 |
 | 시크릿 | ExternalSecret `monolith-db` (+ event-service 공개키) | ❌ 매니페스트 없음 (`platform/external-secrets/README.md` 에 키 목록만) | ADR-0010 |
 | event-service 시크릿 | `JWT_PUBLIC_KEY` 주입 | ❌ base deployment 에 `secretRef` 없음 → aws 프로필에서 **기동 실패** (공개키·JWKS URI 둘 다 없으면 예외) | — |
-| 앱 설정 | Redis·Kafka 주소 등 | ❌ overlay ConfigMap 에 `REDIS_HOST`·`KAFKA_BOOTSTRAP` 없음 (기본값 localhost) | — |
+| 앱 설정 | Redis 주소 등 | ❌ overlay ConfigMap 에 `REDIS_HOST` 없음 (기본값 localhost). `KAFKA_ENABLED` 는 backend 전환(ADR-0019) 때 이름 교체 | — |
 | 플랫폼 Application | LBC, ESO, KEDA, Karpenter, 모니터링 | 🟡 `argocd/aws/apps.yaml` 에 apps-aws·karpenter-nodepools·aws-load-balancer-controller(차트 3.6.3 + Gateway API CRD v1.6.0 + GatewayClass, `platform/gateway/aws`). ESO·KEDA·모니터링 TODO | ADR-0009, 0014 |
 | Sync Window | 이벤트 시간 배포 금지 | ✅ `argocd/aws/sync-window.yaml` | |
-| KEDA | Cron + CPU (event-service), Kafka lag (monolith) | 🟡 event-service ScaledObject ✅, monolith Kafka lag ❌ | ADR-0002 |
+| KEDA | Cron + CPU (event-service), Redis Stream pending (monolith) | 🟡 event-service ScaledObject ✅, monolith Stream 트리거 ❌ | ADR-0002, 0019 |
 | maintenance (DR) | `/api/events/**` 503 | ✅ `base/maintenance` (nginx, LB 헬스체크용 `/healthz` 200) | ADR-0004 |
 | PDB / probe / non-root | 모든 Deployment 필수 | ✅ monolith·event-service base | AGENTS.md |
 
@@ -96,7 +96,7 @@
 | 항목 | 상태 | 비고 |
 |---|---|---|
 | access token | ✅ | RS256 JWT 15분, 브라우저 메모리. event-service 는 공개키(`JWT_PUBLIC_KEY`) 또는 JWKS 로 자체 검증 |
-| refresh token | ✅ | 256bit 랜덤 14일, DB 에 SHA-256 해시만, **재발급 시 교체(rotation)**, HttpOnly·SameSite=Strict 쿠키(`Path=/api/auth`), 로그아웃 시 폐기. CDC 복제 대상 아님 (Failover 후 재로그인) |
+| refresh token | ✅ | 256bit 랜덤 14일, DB 에 SHA-256 해시만, **재발급 시 교체(rotation)**, HttpOnly·SameSite=Strict 쿠키(`Path=/api/auth`), 로그아웃 시 폐기. DR 복제 대상 아님 (Failover 후 재로그인) |
 | 프론트 연동 | ✅ | 401 → refresh 1회 재시도(동시 호출 합침), 새로고침 시 복원 |
 | 재사용 탐지 (token family 폐기) | ❌ | 폐기된 refresh 토큰 재사용 시 401 만 |
 | 서명 키 교체 (`kid`, 다중 키 JWKS) | ❌ | 키 1개 |

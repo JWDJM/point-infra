@@ -3,7 +3,7 @@
 > 모든 AI 코딩 도구가 작업 전에 읽는 지침. 상단 COMMON 블록은 팀 공통(자동 동기화), 하단은 이 레포 전용 규칙.
 > 사람도 읽는다: 신규 팀원 온보딩 시 필독.
 
-<!-- ===================== COMMON RULES START (v1.2.0) =====================
+<!-- ===================== COMMON RULES START (v1.3.0) =====================
   원본: point-infra/team/ai/AGENTS.common.md
   이 블록은 scripts/sync-ai-rules.sh 로 각 레포 AGENTS.md 에 복사된다.
   ⚠️ 각 레포에서 이 블록을 직접 수정하지 말 것. 원본을 PR로 수정 → 동기화.
@@ -19,7 +19,7 @@
 
 - **서비스:** 금융 포인트 플랫폼 — 마이데이터 자산조회(평시 트래픽) + 출석/퀴즈 포인트 이벤트(주 1~2회 폭주)
 - **구조:** 모듈러 모놀리스(user/asset/point/cs) + 이벤트 전용 MSA(event-service)
-- **인프라:** AWS Main(EKS, RDS PostgreSQL, ElastiCache, MSK) / GCP Pilot Light DR(Cloud SQL 상시 복제, GKE 장애 시 생성)
+- **인프라:** AWS Main(EKS, RDS PostgreSQL, ElastiCache) / GCP Pilot Light DR(Cloud SQL 상시 복제, GKE 장애 시 생성)
 - **자동화:** Terraform(인프라) + ArgoCD(배포, GitOps) + GitHub Actions(CI)
 - **목표 수치:** RTO ≤ 30분, RPO ≤ 5초 (near-zero, **"RPO 0"이라고 쓰지 않는다**)
 - **레포:**
@@ -40,10 +40,10 @@
 | 확장 | EKS + Karpenter + KEDA (Lambda, ECS, ASG 도입 금지) | ADR-0002 |
 | 트래픽 진입 | Gateway API (AWS: ALB / GCP: GKE Gateway), 프론트는 web 파드 | ADR-0014, 0015 |
 | DR | GCP Pilot Light, DR 시 monolith만 복구 | ADR-0003, 0004 |
-| 복제 | Debezium CDC (비동기) | ADR-0005 |
+| 복제 | PostgreSQL 네이티브 논리 복제 (비동기, PUBLICATION → SUBSCRIPTION) | ADR-0020 |
 | DB | PostgreSQL 16 (RDS / Cloud SQL) | ADR-0006, 0013 |
 | 이벤트 판정 | Redis Lua 원자 처리 (DB 락 사용 금지) | ADR-0007 |
-| 원장 반영 | Kafka 비동기 + 멱등키 | ADR-0008 |
+| 원장 반영 | Redis Stream 비동기 (consumer group) + 멱등키 | ADR-0019 |
 | 역할 분리 | Terraform = 클라우드 + ArgoCD 설치까지 / 나머지 K8s = ArgoCD | ADR-0009 |
 | DR 독립성 | DR 경로에서 AWS 리소스 참조 금지 | ADR-0010 |
 | 네트워크 | AWS `10.10.0.0/16`, GCP `10.20.0.0/16` 등 CIDR 표 변경 금지 | network-design.md |
@@ -110,7 +110,7 @@ AI는 아래를 **제안하거나 실행하지 않는다.** 사용자가 요청�
 | 모든 작업 | 이 문서(특히 **§9 작업 시작·종료 절차**), 해당 레포 `AGENTS.md` 하단의 레포별 규칙 |
 | 이슈·PR·보드 | `docs/team/github-workflow.md` |
 | 백엔드 도메인 | `01-architecture/hybrid-msa.md`, `03-development/domain-model.md`, `api-spec.md` |
-| 이벤트/Redis/Kafka | `02-adr/0007`, `0008`, `01-architecture/data-architecture.md` |
+| 이벤트/Redis/원장 반영 | `02-adr/0007`, `0019`, `01-architecture/data-architecture.md` |
 | Terraform | `04-infrastructure/terraform-guide.md`, `01-architecture/network-design.md` |
 | K8s/배포 | `04-infrastructure/cicd-pipeline.md`, `02-adr/0009` |
 | DR 관련 | `06-disaster-recovery/*`, `02-adr/0010`, `0011` |
@@ -206,12 +206,12 @@ gh api --method POST repos/JWDJM/<레포>/issues/PARENT/sub_issues -F sub_issue_
 - 이슈를 만들기 전에는 반드시 Step 1의 검색을 먼저 한다 (중복 생성 금지).
 - 보드 설정, 라벨 정의, 워크플로 변경은 사람이 한다.
 
-<!-- ====================== COMMON RULES END (v1.2.0) ====================== -->
+<!-- ====================== COMMON RULES END (v1.3.0) ====================== -->
 
 # 레포별 규칙 — point-infra
 
 ## 이 레포의 범위
-Terraform, K8s 매니페스트(GitOps 원천), CDC 커넥터, DR 스크립트, 부하 테스트, **설계 문서·ADR**, 팀 공통 규칙 원본(`team/`).
+Terraform, K8s 매니페스트(GitOps 원천), DR 복제 SQL(`cdc/`, 논리 복제), DR 스크립트, 부하 테스트, **설계 문서·ADR**, 팀 공통 규칙 원본(`team/`).
 
 ## Terraform
 - `modules/`에는 **provider·backend 블록을 두지 않는다.** provider는 `envs/*`에서만 선언.
