@@ -27,12 +27,12 @@
 | 5 | GitOps 부트스트랩 | Terraform helm_release (ArgoCD + root-gcp-dr) | ArgoCD Apps Healthy | `kubectl apply -k k8s/argocd` |
 | 6 | 복제 종료 확인 · RPO 근거 기록 | 클러스터 내부 Pod: `record-rpo.sh` → `last_replicated_at`(heartbeat `ts`), `last_ledger_at`(`max(point_ledger.created_at)`) | 값 기록 | 기록만 하고 진행 |
 | 7 | Cloud SQL 승격 | 클러스터 내부 Job: `promote-cloudsql.sh promote` → 구독 해제(`DISABLE` → `SET (slot_name = NONE)` → `DROP SUBSCRIPTION`), 앱 계정 LOGIN(`app_rw`·`point_migrator`·`user_service`·`point_command`·`point_query`), `fix-sequences.sql`, `reconcile-wallet.sql` | 앱 계정 접속 성공, drift 건수 기록 | 같은 SQL 을 `kubectl run` 으로 수동 실행 |
-| 8 | 앱 기동 | ArgoCD 자동 동기화 — wave 0: maintenance·Gateway + `db-migration` Job (승격 후 성공), wave 1: core-service | Job Complete, readiness OK | `kubectl -n point logs job/db-migration`, 이미지 태그/시크릿 확인 |
+| 8 | 앱 기동 | ArgoCD 자동 동기화 — wave 0: maintenance·Gateway + `db-migration` Job (승격 후 성공), wave 1: core-service·point-query, wave 2: HTTPRoute(경로 전환) | Job Complete, readiness OK | `kubectl -n point logs job/db-migration`, 이미지 태그/시크릿 확인 |
 | 9 | 트래픽 전환 | `scripts/dr/switch-dns.sh to-gcp` | `dig` 결과 GCP IP | §4 DNS 전환 시나리오 |
 | 10 | 스모크 테스트 | `smoke-test.sh` (`DR_BASE_URL` = GitHub Variables) — 로그인 → 잔액 조회 → 내역 조회 | 200 OK | 롤백 판단 |
 | 11 | 공지 | 이벤트 점검 공지, 상태 페이지. **"이벤트 보상은 서비스 정상화 후 지급"** (미반영 당첨은 Failback 6단계에서 반영, ADR-0018) | - | - |
 
-> **왜 이 순서인가:** Cloud SQL 은 Private IP(`10.30.0.0/20`) 전용이라 GitHub-hosted runner 에서는 `psql` 로 접속할 수 없다. runner 는 GCP API(gcloud, Terraform)만 쓰고, SQL 이 필요한 6·7단계는 GKE 생성 직후 클러스터 내부(같은 VPC)의 일회성 Pod/Job 으로 실행한다. Gateway·maintenance 는 5단계 직후 바로 뜨고(LB 생성 시작), `db-migration` Job 은 7단계(앱 계정 LOGIN) 전까지 접속 실패로 재시도한다(Job backoff + ArgoCD sync retry). 승격 후 Job 이 성공하면 core-service(wave 1)가 배포된다 (ADR-0024).
+> **왜 이 순서인가:** Cloud SQL 은 Private IP(`10.30.0.0/20`) 전용이라 GitHub-hosted runner 에서는 `psql` 로 접속할 수 없다. runner 는 GCP API(gcloud, Terraform)만 쓰고, SQL 이 필요한 6·7단계는 GKE 생성 직후 클러스터 내부(같은 VPC)의 일회성 Pod/Job 으로 실행한다. Gateway·maintenance 는 5단계 직후 바로 뜨고(LB 생성 시작), `db-migration` Job 은 7단계(앱 계정 LOGIN) 전까지 접속 실패로 재시도한다(Job backoff + ArgoCD sync retry). 승격 후 Job 이 성공하면 core-service·point-query(wave 1)가 배포된다 (ADR-0024).
 >
 > **RPO 기록 주의:** 장애 후 `now() - ts` 는 "장애 발생 후 경과 시간" 이지 RPO 가 아니다. 복제 지연(`replication_lag`)은 평시·드릴 지표로만 쓰고, 실제 RPO = (Main 중단 시각, AWS 기록으로 사후 확정) − `last_replicated_at`.
 >

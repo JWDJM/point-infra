@@ -1,12 +1,15 @@
-# 선택적 복구: db-migration Job + core-service + maintenance 만 배포. event-service 없음. (ADR-0004)
+# 선택적 복구: db-migration Job + core-service + point-query + maintenance 만 배포. event-service 없음. (ADR-0004·0024)
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base/db-migration   # Flyway Job — Cloud SQL 승격 전에는 NOLOGIN 으로 실패·재시도, 승격 후 성공 (dr-runbook)
   - ../../base/core-service
+  - ../../base/point-query     # 포인트 조회 — DR 복구 대상 (ADR-0024)
   - ../../base/maintenance
   - gateway.yaml          # Gateway + HTTPRoute (ADR-0014)
 configMapGenerator:
+  - name: point-query-config
+    literals: [SPRING_PROFILES_ACTIVE=gcp-dr, DR_MODE=true]
   - name: db-migration-config
     literals: [SPRING_PROFILES_ACTIVE=gcp-dr]
   - name: core-service-config   # REWARD_STREAM_ENABLED=false = 원장 반영 consumer·Redis health 비활성 (DR 에는 Redis 없음, ADR-0004·0019)
@@ -14,6 +17,8 @@ configMapGenerator:
 images:   # Artifact Registry (CI 이중 푸시, ADR-0010)
   - name: db-migration   # newTag 는 backend CI 봇이 추가한다 (직접 수정 금지)
     newName: asia-northeast3-docker.pkg.dev/PROJECT_ID/point-apps/db-migration
+  - name: point-query   # newTag 는 backend CI 봇이 추가한다 (직접 수정 금지)
+    newName: asia-northeast3-docker.pkg.dev/PROJECT_ID/point-apps/point-query
   - name: core-service
     newName: asia-northeast3-docker.pkg.dev/PROJECT_ID/point-apps/core-service
     newTag: "0.1.0"
