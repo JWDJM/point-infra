@@ -25,6 +25,7 @@
 | [0019](0019-redis-stream-ledger-sync.md) | 원장 반영 경로를 Kafka 에서 Redis Stream 으로 변경 (ADR-0008 대체) | Accepted |
 | [0020](0020-postgresql-logical-replication.md) | DR 복제를 PostgreSQL 네이티브 논리 복제로 변경 (ADR-0005 대체) | Accepted |
 | [0021](0021-spring-boot-4-upgrade.md) | Spring Boot 3.5 → 4.1 업그레이드 | Accepted |
+| [0022](0022-eks-node-pool-split.md) | EKS 노드 풀을 system / general / event / monitoring 4개로 분리 | Proposed |
 | [0023](0023-terraform-env-split.md) | AWS Terraform 을 dev / prod 환경 × 계층별 state 로 분리, dev VPC `10.11.0.0/16` | Proposed |
 
 ## 템플릿
