@@ -5,7 +5,7 @@
 --   - 스키마는 Flyway 로 먼저 적용 (DDL 은 복제되지 않는다)
 --   - Cloud SQL → RDS 5432 경로: HA VPN + sg-rds 인바운드 10.30.0.0/20 (network-design.md)
 --   - 실행 계정에 필요한 권한(cloudsqlsuperuser / pg_create_subscription)과 제약: 공식 문서 확인 필요 (ADR-0020)
--- 앱 계정(app_rw)은 평시 NOLOGIN. 평시 쓰기는 구독 apply 만 있다. 승격 시 scripts/dr/promote-cloudsql.sh
+-- 앱 계정(app_rw, scripts/db/app-roles.sql 의 계정)은 평시 NOLOGIN. 평시 쓰기는 구독 apply 만 있다. 승격 시 scripts/dr/promote-cloudsql.sh
 
 CREATE SUBSCRIPTION dr_subscription
   CONNECTION :'rds_conninfo'
