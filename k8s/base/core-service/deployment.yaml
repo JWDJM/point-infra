@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: core-service
   labels: { app: core-service }
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"   # db-migration Job(wave 0) 성공 후 배포 (ADR-0024)
 spec:
   replicas: 2
   strategy:

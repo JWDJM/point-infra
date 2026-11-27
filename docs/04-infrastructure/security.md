@@ -29,7 +29,7 @@
 
 | 계정 | 위치 | 권한 |
 |---|---|---|
-| `app_rw` | RDS | 앱 스키마 DML **+ Flyway DDL** (현재 Flyway 가 `app_rw` 로 실행돼 스키마·테이블 소유자가 된다 → `CREATE ON DATABASE`, PostgreSQL 15+ 는 `CREATE ON SCHEMA public` 도 필요). 원장 UPDATE/DELETE 를 DB 권한으로 막으려면 마이그레이션 계정과 분리해야 한다 |
+| `app_rw` | RDS | 앱 스키마 DML **+ Flyway DDL** (현재 `db-migration` Job 이 `app_rw` 로 Flyway 를 실행해 스키마·테이블 소유자가 된다 → `CREATE ON DATABASE`, PostgreSQL 15+ 는 `CREATE ON SCHEMA public` 도 필요). 원장 UPDATE/DELETE 를 DB 권한으로 막으려면 마이그레이션 계정과 분리해야 한다 |
 | `dr_replicator` | RDS | `rds_replication`, 복제 대상 테이블 SELECT. Cloud SQL 구독이 이 계정으로 접속 (ADR-0020) |
 | 구독 소유 계정 | Cloud SQL | `dr_subscription` 을 만든 관리 계정. 평시 쓰기는 구독 apply 뿐. 필요한 권한(`cloudsqlsuperuser` / `pg_create_subscription`)은 공식 문서 확인 필요 |
 | `app_rw` | Cloud SQL | **평시 NOLOGIN → Failover 시 LOGIN 전환** |

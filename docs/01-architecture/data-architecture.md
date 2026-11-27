@@ -25,7 +25,7 @@
 | `cs.inquiry` *(계획, 미생성)* | 1:1 문의 | ❌ |
 | `asset.asset_snapshot` *(계획, 미생성)* | 자산 조회 캐시 | ❌ (재조회 가능) |
 
-> 실제 테이블은 point-backend `core-service/src/main/resources/db/migration` (Flyway) 기준. *(계획)* 표시는 아직 마이그레이션이 없다.
+> 실제 테이블은 point-backend `db-migration/src/main/resources/db/migration` (Flyway, `db-migration` Job 이 적용 — ADR-0024) 기준. *(계획)* 표시는 아직 마이그레이션이 없다.
 
 **원칙:** "잃으면 돈/신뢰 문제가 생기는 데이터"만 실시간 복제한다. 재생성 가능한 데이터는 제외해 Lag과 비용을 줄인다.
 
