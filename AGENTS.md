@@ -3,7 +3,7 @@
 > 모든 AI 코딩 도구가 작업 전에 읽는 지침. 상단 COMMON 블록은 팀 공통(자동 동기화), 하단은 이 레포 전용 규칙.
 > 사람도 읽는다: 신규 팀원 온보딩 시 필독.
 
-<!-- ===================== COMMON RULES START (v1.5.0) =====================
+<!-- ===================== COMMON RULES START (v1.6.0) =====================
   원본: point-infra/team/ai/AGENTS.common.md
   이 블록은 scripts/sync-ai-rules.sh 로 각 레포 AGENTS.md 에 복사된다.
   ⚠️ 각 레포에서 이 블록을 직접 수정하지 말 것. 원본을 PR로 수정 → 동기화.
@@ -18,7 +18,7 @@
 ## 1. 프로젝트 컨텍스트 (요약)
 
 - **서비스:** 금융 포인트 플랫폼 — 마이데이터 자산조회(평시 트래픽) + 출석/퀴즈 포인트 이벤트(주 1~2회 폭주)
-- **구조:** 모듈러 모놀리스(user/asset/point/cs) + 이벤트 전용 MSA(event-service)
+- **구조:** 모듈러 모놀리스(user/asset/point/cs) + 이벤트 전용 MSA(event-service) → **ADR-0024 로 user-service · point-command · point-query 분리 진행 중**
 - **인프라:** AWS Main(EKS, RDS PostgreSQL, ElastiCache) / GCP Pilot Light DR(Cloud SQL 상시 복제, GKE 장애 시 생성)
 - **자동화:** Terraform(인프라) + ArgoCD(배포, GitOps) + GitHub Actions(CI)
 - **목표 수치:** RTO ≤ 30분, RPO ≤ 5초 (near-zero, **"RPO 0"이라고 쓰지 않는다**)
@@ -36,10 +36,10 @@
 
 | 영역 | 확정 사항 | 근거 |
 |---|---|---|
-| 아키텍처 | event 도메인만 MSA, 나머지는 core-service | ADR-0001 |
+| 아키텍처 | **전환 중:** core-service → user-service · point-command · point-query (event-service 유지). 서비스 경계·DB 권한·라우팅은 ADR-0024 를 따른다. 전환이 끝나기 전 core-service 에 남은 기능은 그대로 둔다 | ADR-0024 (Proposed, 제안 승인), ADR-0001 |
 | 확장 | EKS + Karpenter + KEDA (Lambda, ECS, ASG 도입 금지) | ADR-0002 |
 | 트래픽 진입 | Gateway API (AWS: ALB / GCP: GKE Gateway), 프론트는 web 파드 | ADR-0014, 0015 |
-| DR | GCP Pilot Light, DR 시 core-service만 복구 | ADR-0003, 0004 |
+| DR | GCP Pilot Light, DR 시 event-service 를 **제외한** 서비스만 복구 (전환 중: core-service → user-service · point-command · point-query) | ADR-0003, 0004, 0024 |
 | 복제 | PostgreSQL 네이티브 논리 복제 (비동기, PUBLICATION → SUBSCRIPTION) | ADR-0020 |
 | DB | PostgreSQL 16 (RDS / Cloud SQL) | ADR-0006, 0013 |
 | 이벤트 판정 | Redis Lua 원자 처리 (DB 락 사용 금지) | ADR-0007 |
@@ -206,7 +206,7 @@ gh api --method POST repos/JWDJM/<레포>/issues/PARENT/sub_issues -F sub_issue_
 - 이슈를 만들기 전에는 반드시 Step 1의 검색을 먼저 한다 (중복 생성 금지).
 - 보드 설정, 라벨 정의, 워크플로 변경은 사람이 한다.
 
-<!-- ====================== COMMON RULES END (v1.5.0) ====================== -->
+<!-- ====================== COMMON RULES END (v1.6.0) ====================== -->
 
 # 레포별 규칙 — point-infra
 
