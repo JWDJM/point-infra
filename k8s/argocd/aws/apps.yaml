@@ -16,6 +16,10 @@ spec:
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [CreateNamespace=true]
+    # db-migration Job(Sync hook)이 실패하면 sync 를 다시 시도한다 — DR 은 Cloud SQL 승격 후 자동으로 이어진다 (ADR-0024)
+    retry:
+      limit: 10
+      backoff: { duration: 30s, factor: 2, maxDuration: 5m }
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application

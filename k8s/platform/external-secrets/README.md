@@ -5,7 +5,9 @@
 | aws | `ClusterSecretStore/aws-sm` | AWS Secrets Manager (Pod Identity) |
 | gcp-dr | `ClusterSecretStore/gcp-sm` | GCP Secret Manager (Workload Identity) |
 
-동일한 `ExternalSecret` 이름(`core-service-db`)을 양쪽에서 생성 → 앱 매니페스트는 환경과 무관.
+동일한 `ExternalSecret` 이름(`core-service-db`, `db-migration-db`)을 양쪽에서 생성 → 앱 매니페스트는 환경과 무관.
+
+`db-migration-db` Secret (db-migration Job, ADR-0024) — 키는 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`. 마이그레이션 전용 계정(DDL)은 #57 에서 만든다. 그 전까지는 `core-service-db` 와 같은 `app_rw` 값을 넣는다 (지금 Flyway 를 실행하는 계정과 동일).
 TODO: ClusterSecretStore, ExternalSecret 매니페스트 작성
 
 `core-service-db` Secret 에 담을 키 (양쪽 클라우드에 **같은 값**):

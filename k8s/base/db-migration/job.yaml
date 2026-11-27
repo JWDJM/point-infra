@@ -1,0 +1,42 @@
+# DB 마이그레이션 Job (point-infra ADR-0024, point-backend db-migration 모듈) — Flyway 실행 후 종료
+#
+# ArgoCD Sync 단계 hook + sync-wave 로 순서를 잡는다 (PreSync 가 아님):
+#   wave 0 : Gateway·HTTPRoute·maintenance·event-service (DB 미사용) + 이 Job
+#   wave 1 : DB 를 쓰는 서비스 (core-service …) — 이 Job 이 성공해야 적용된다
+# PreSync 로 두면 Job 이 실패하는 동안 같은 Application 의 모든 리소스(Gateway LB 생성 포함)가 멈춘다.
+# DR 에서는 Cloud SQL 승격(dr-runbook 7단계) 전까지 앱 계정이 NOLOGIN 이라 Job 이 실패하므로,
+# Gateway·점검 페이지는 먼저 뜨고, 승격 후 Job 재시도가 성공하면 core-service 가 배포된다.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migration
+  labels: { app: db-migration }
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation   # 다음 sync 때 지우고 다시 만든다 (직전 실행 로그 확인 가능)
+spec:
+  # 실패 시 Pod 재시도 (10s→20s→…→최대 6분 간격). DR 승격 대기 시간을 넉넉히 덮는다. 그래도 실패하면 ArgoCD retry 가 다시 sync
+  backoffLimit: 10
+  activeDeadlineSeconds: 2700
+  template:
+    metadata:
+      labels: { app: db-migration }
+    spec:
+      restartPolicy: Never
+      serviceAccountName: db-migration
+      securityContext: { runAsNonRoot: true, runAsUser: 10001 }
+      containers:
+        - name: db-migration
+          image: db-migration:latest   # overlay 에서 레지스트리/태그 치환
+          envFrom:
+            - configMapRef: { name: db-migration-config }   # SPRING_PROFILES_ACTIVE — 없으면 local 프로필(데모 시드)로 돈다
+            - secretRef: { name: db-migration-db }          # External Secrets 가 생성 (마이그레이션 전용 계정, #57)
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { memory: 512Mi }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: db-migration

@@ -1,15 +1,20 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+  - ../../base/db-migration   # Flyway Job (ArgoCD Sync hook, wave 0)
   - ../../base/core-service
   - ../../base/event-service
   - gateway.yaml          # Gateway + HTTPRoute (ADR-0014)
 configMapGenerator:
   - name: core-service-config   # REWARD_STREAM_ENABLED=true = 원장 반영 Redis Stream consumer 활성 (ADR-0019). REDIS_HOST 는 elasticache 모듈 생성 후 추가
     literals: [SPRING_PROFILES_ACTIVE=aws, REWARD_STREAM_ENABLED=true, DR_MODE=false]
+  - name: db-migration-config   # aws 프로필 = db/migration 만 적용 (데모 시드 제외)
+    literals: [SPRING_PROFILES_ACTIVE=aws]
   - name: event-config
     literals: [SPRING_PROFILES_ACTIVE=aws]
 images:   # CI 가 태그를 자동 커밋
+  - name: db-migration   # newTag 는 backend CI 봇이 추가한다 (직접 수정 금지)
+    newName: ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/db-migration
   - name: core-service
     newName: ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/core-service
     newTag: "0.1.0"
