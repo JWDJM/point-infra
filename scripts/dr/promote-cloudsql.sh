@@ -30,7 +30,12 @@ case "$PHASE" in
     #   ALTER SUBSCRIPTION dr_subscription DISABLE;
     #   ALTER SUBSCRIPTION dr_subscription SET (slot_name = NONE);
     #   DROP SUBSCRIPTION dr_subscription;
-    #   ALTER ROLE app_rw LOGIN;
+    #   -- 앱 계정 LOGIN (평시 NOLOGIN, scripts/db/app-roles.sql). 비밀번호는 RDS 와 같은 값이 이미 들어 있다
+    #   ALTER ROLE app_rw LOGIN;            -- 이행 기간 (core-service). #60 에서 제거
+    #   ALTER ROLE point_migrator LOGIN;    -- db-migration Job — 이후 Job 재시도가 성공해 서비스(wave 1)가 배포된다
+    #   ALTER ROLE user_service LOGIN;
+    #   ALTER ROLE point_command LOGIN;
+    #   ALTER ROLE point_query LOGIN;
     #   \i scripts/dr/fix-sequences.sql
     #   \i scripts/dr/reconcile-wallet.sql
     echo "TODO: promote ${INSTANCE}"

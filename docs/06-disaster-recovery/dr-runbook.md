@@ -26,7 +26,7 @@
 | 4 | 컴퓨팅 생성 | `terraform apply envs/gcp-dr-compute` | GKE RUNNING | 재시도 1회 → 존(zone) 변경 변수 |
 | 5 | GitOps 부트스트랩 | Terraform helm_release (ArgoCD + root-gcp-dr) | ArgoCD Apps Healthy | `kubectl apply -k k8s/argocd` |
 | 6 | 복제 종료 확인 · RPO 근거 기록 | 클러스터 내부 Pod: `record-rpo.sh` → `last_replicated_at`(heartbeat `ts`), `last_ledger_at`(`max(point_ledger.created_at)`) | 값 기록 | 기록만 하고 진행 |
-| 7 | Cloud SQL 승격 | 클러스터 내부 Job: `promote-cloudsql.sh promote` → 구독 해제(`DISABLE` → `SET (slot_name = NONE)` → `DROP SUBSCRIPTION`), app_rw LOGIN, `fix-sequences.sql`, `reconcile-wallet.sql` | app_rw 접속 성공, drift 건수 기록 | 같은 SQL 을 `kubectl run` 으로 수동 실행 |
+| 7 | Cloud SQL 승격 | 클러스터 내부 Job: `promote-cloudsql.sh promote` → 구독 해제(`DISABLE` → `SET (slot_name = NONE)` → `DROP SUBSCRIPTION`), 앱 계정 LOGIN(`app_rw`·`point_migrator`·`user_service`·`point_command`·`point_query`), `fix-sequences.sql`, `reconcile-wallet.sql` | 앱 계정 접속 성공, drift 건수 기록 | 같은 SQL 을 `kubectl run` 으로 수동 실행 |
 | 8 | 앱 기동 | ArgoCD 자동 동기화 — wave 0: maintenance·Gateway + `db-migration` Job (승격 후 성공), wave 1: core-service | Job Complete, readiness OK | `kubectl -n point logs job/db-migration`, 이미지 태그/시크릿 확인 |
 | 9 | 트래픽 전환 | `scripts/dr/switch-dns.sh to-gcp` | `dig` 결과 GCP IP | §4 DNS 전환 시나리오 |
 | 10 | 스모크 테스트 | `smoke-test.sh` (`DR_BASE_URL` = GitHub Variables) — 로그인 → 잔액 조회 → 내역 조회 | 200 OK | 롤백 판단 |
